@@ -5,6 +5,15 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-08-16
+
+### Fixed
+- **Unix Domain Socket Path Length Optimization (`SSHProfile.swift` & `RemoteExecService.swift`)**:
+  - Compacted OpenSSH ControlMaster socket filenames to `i_<shortId>.sock` and directory to `~/.ssh/integra/sock/`.
+  - Resolved `unix_listener: path too long for Unix domain socket` error by keeping the total socket path with OpenSSH temporary suffix (`.Elabp9...`) under 75 bytes (well within macOS Darwin's 104-byte `sun_path` limit).
+
+---
+
 ## [0.8.3] - 2026-08-16
 
 ### Added

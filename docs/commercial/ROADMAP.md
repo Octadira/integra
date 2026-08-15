@@ -3,10 +3,10 @@
 ## Milestone Overview
 
 ```
-  v0.2.0 (Stabilization)       v0.4.0 (Network Recovery)     v0.6.0 (AI Bridge & AGENTS.md)  v0.8.3 (Codex & Hardening)
+  v0.2.0 (Stabilization)       v0.4.0 (Network Recovery)     v0.6.0 (AI Bridge & AGENTS.md)  v0.8.4 (Socket Path Length Fix)
        [Completed]                  [Completed]                  [Completed]                     [Completed]
-  * Native Swift UI            * Network Recovery Engine     * Multi-Port SSH Forwarding    * OpenAI Codex IDE Option
-  * KEXT-Free FUSE-T           * Exponential Backoff         * Remote CLI (integra-exec)    * Exact Directory Matching
+  * Native Swift UI            * Network Recovery Engine     * Multi-Port SSH Forwarding    * Compact Socket sun_path (<75B)
+  * KEXT-Free FUSE-T           * Exponential Backoff         * Remote CLI (integra-exec)    * OpenAI Codex IDE Option
   * Tailscale & Desktop Pin    * Sleep/Wake Auto-Healing     * AGENTS.md/CLAUDE.md Engine   * Hardened AskPass & Log Rotation
 ```
 

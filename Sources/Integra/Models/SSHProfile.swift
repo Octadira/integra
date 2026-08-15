@@ -99,13 +99,17 @@ public struct SSHProfile: Identifiable, Codable, Equatable {
         return "\(NSHomeDirectory())/Desktop/\(safeName.isEmpty ? "Remote_Server" : safeName)"
     }
     
+    public var shortId: String {
+        return id.uuidString.replacingOccurrences(of: "-", with: "").prefix(12).lowercased()
+    }
+    
     public var controlSocketPath: String {
-        let socketDir = "\(NSHomeDirectory())/.ssh/integra/sockets"
-        return "\(socketDir)/integra_\(id.uuidString.lowercased()).sock"
+        let socketDir = "\(NSHomeDirectory())/.ssh/integra/sock"
+        return "\(socketDir)/i_\(shortId).sock"
     }
     
     public var controlMountMapPath: String {
-        let socketDir = "\(NSHomeDirectory())/.ssh/integra/sockets"
-        return "\(socketDir)/integra_\(id.uuidString.lowercased()).mount"
+        let socketDir = "\(NSHomeDirectory())/.ssh/integra/sock"
+        return "\(socketDir)/i_\(shortId).mount"
     }
 }

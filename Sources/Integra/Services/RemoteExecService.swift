@@ -221,7 +221,7 @@ public class RemoteExecService: ObservableObject {
         fi
 
         CURRENT_DIR="$(pwd -P)"
-        SOCKET_DIR="$HOME/.ssh/integra/sockets"
+        SOCKET_DIR="$HOME/.ssh/integra/sock"
 
         # Determine interactive pseudo-terminal flag (-t vs -T)
         if [ -t 0 ] && [ -t 1 ]; then
@@ -235,7 +235,7 @@ public class RemoteExecService: ObservableObject {
 
         if [ -d "$SOCKET_DIR" ]; then
             # Check all registered active mount maps for exact directory matching (M-3 Fix)
-            for MAP_FILE in "$SOCKET_DIR"/integra_*.mount; do
+            for MAP_FILE in "$SOCKET_DIR"/i_*.mount; do
                 if [ -f "$MAP_FILE" ]; then
                     MOUNT_PATH="$(cat "$MAP_FILE" 2>/dev/null)"
                     SOCK="${MAP_FILE%.mount}.sock"
