@@ -3,9 +3,9 @@
 ## Milestone Overview
 
 ```
-  v0.2.0 (Stabilization)       v0.4.0 (Network Recovery)     v0.6.0 (AI Bridge & AGENTS.md)  v0.8.2 (Security Hardening)
+  v0.2.0 (Stabilization)       v0.4.0 (Network Recovery)     v0.6.0 (AI Bridge & AGENTS.md)  v0.8.3 (Codex & Hardening)
        [Completed]                  [Completed]                  [Completed]                     [Completed]
-  * Native Swift UI            * Network Recovery Engine     * Multi-Port SSH Forwarding    * Socket Isolation by UUID
+  * Native Swift UI            * Network Recovery Engine     * Multi-Port SSH Forwarding    * OpenAI Codex IDE Option
   * KEXT-Free FUSE-T           * Exponential Backoff         * Remote CLI (integra-exec)    * Exact Directory Matching
   * Tailscale & Desktop Pin    * Sleep/Wake Auto-Healing     * AGENTS.md/CLAUDE.md Engine   * Hardened AskPass & Log Rotation
 ```

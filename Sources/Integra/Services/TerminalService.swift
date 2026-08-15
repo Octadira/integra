@@ -83,6 +83,27 @@ public class TerminalService {
                 }
                 task.arguments = ["-a", "Antigravity", expanded]
             }
+        case .codex:
+            let candidateNames = ["Codex", "OpenAI Codex", "ChatGPT", "Codex IDE"]
+            var opened = false
+            for name in candidateNames {
+                if FileManager.default.fileExists(atPath: "/Applications/\(name).app") ||
+                   FileManager.default.fileExists(atPath: "\(NSHomeDirectory())/Applications/\(name).app") {
+                    task.arguments = ["-a", name, expanded]
+                    opened = true
+                    break
+                }
+            }
+            if !opened {
+                if FileManager.default.fileExists(atPath: "/usr/local/bin/codex") {
+                    let cliTask = Process()
+                    cliTask.executableURL = URL(fileURLWithPath: "/usr/local/bin/codex")
+                    cliTask.arguments = [expanded]
+                    try? cliTask.run()
+                    return
+                }
+                task.arguments = ["-a", "Codex", expanded]
+            }
         }
         
         try? task.run()
