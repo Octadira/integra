@@ -1,0 +1,11 @@
+.build/
+.swiftpm/
+dist/
+dist*/
+*.dmg
+*.zip
+*.xcodeproj
+*.xcworkspace
+.DS_Store
+*.swp
+*~
