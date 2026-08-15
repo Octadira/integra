@@ -11,6 +11,15 @@ public class IntegraLogger {
         return logDir.appendingPathComponent("integra.log")
     }
     
+    private func rotateLogsIfNeeded(fileURL: URL) {
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+           let size = attrs[.size] as? Int64, size > 5 * 1024 * 1024 { // 5 MB rotation threshold (L-3 Fix)
+            let backupURL = fileURL.deletingLastPathComponent().appendingPathComponent("integra.log.1")
+            try? FileManager.default.removeItem(at: backupURL)
+            try? FileManager.default.moveItem(at: fileURL, to: backupURL)
+        }
+    }
+    
     public func log(_ message: String) {
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let line = "[\(timestamp)] \(message)\n"
@@ -19,6 +28,8 @@ public class IntegraLogger {
         logQueue.async { [weak self] in
             guard let self = self else { return }
             let fileURL = self.logFileURL
+            self.rotateLogsIfNeeded(fileURL: fileURL)
+            
             if let data = line.data(using: .utf8) {
                 if FileManager.default.fileExists(atPath: fileURL.path) {
                     if let fileHandle = try? FileHandle(forWritingTo: fileURL) {

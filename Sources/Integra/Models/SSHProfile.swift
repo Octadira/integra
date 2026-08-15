@@ -100,9 +100,12 @@ public struct SSHProfile: Identifiable, Codable, Equatable {
     }
     
     public var controlSocketPath: String {
-        let sanitizedName = name.isEmpty ? host : name
-        let safeName = sanitizedName.components(separatedBy: CharacterSet.alphanumerics.inverted).joined(separator: "_")
         let socketDir = "\(NSHomeDirectory())/.ssh/integra/sockets"
-        return "\(socketDir)/integra_ctl_\(safeName.lowercased()).sock"
+        return "\(socketDir)/integra_\(id.uuidString.lowercased()).sock"
+    }
+    
+    public var controlMountMapPath: String {
+        let socketDir = "\(NSHomeDirectory())/.ssh/integra/sockets"
+        return "\(socketDir)/integra_\(id.uuidString.lowercased()).mount"
     }
 }

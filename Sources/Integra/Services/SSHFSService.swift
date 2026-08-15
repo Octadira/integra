@@ -30,47 +30,51 @@ public class SSHFSService: ObservableObject {
     }
     
     public func refreshActiveMounts() {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/sbin/mount")
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        
-        do {
-            try task.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            task.waitUntilExit()
+        Task.detached(priority: .utility) { [weak self] in
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/sbin/mount")
+            let pipe = Pipe()
+            task.standardOutput = pipe
             
-            if let output = String(data: data, encoding: .utf8) {
-                var mounts: [ActiveMountInfo] = []
-                let lines = output.components(separatedBy: .newlines)
-                for line in lines {
-                    let parts = line.components(separatedBy: " on ")
-                    if parts.count >= 2 {
-                        let source = parts[0].trimmingCharacters(in: .whitespaces)
-                        let rest = parts[1]
-                        let localPath: String
-                        if let parenIndex = rest.range(of: " (") {
-                            localPath = String(rest[..<parenIndex.lowerBound]).trimmingCharacters(in: .whitespaces)
-                        } else {
-                            localPath = rest.trimmingCharacters(in: .whitespaces)
-                        }
-                        
-                        let lowerLine = line.lowercased()
-                        let lowerPath = localPath.lowercased()
-                        
-                        if lowerLine.contains("fuse") || lowerLine.contains("sshfs") || lowerLine.contains("nfs") ||
-                           lowerPath.contains("/mounts/") {
-                            let standardPath = (localPath as NSString).standardizingPath
-                            if !mounts.contains(where: { ($0.localPath as NSString).standardizingPath.lowercased() == standardPath.lowercased() }) {
-                                mounts.append(ActiveMountInfo(source: source, localPath: standardPath))
+            do {
+                try task.run()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                task.waitUntilExit()
+                
+                if let output = String(data: data, encoding: .utf8) {
+                    var mounts: [ActiveMountInfo] = []
+                    let lines = output.components(separatedBy: .newlines)
+                    for line in lines {
+                        let parts = line.components(separatedBy: " on ")
+                        if parts.count >= 2 {
+                            let source = parts[0].trimmingCharacters(in: .whitespaces)
+                            let rest = parts[1]
+                            let localPath: String
+                            if let parenIndex = rest.range(of: " (") {
+                                localPath = String(rest[..<parenIndex.lowerBound]).trimmingCharacters(in: .whitespaces)
+                            } else {
+                                localPath = rest.trimmingCharacters(in: .whitespaces)
+                            }
+                            
+                            let lowerLine = line.lowercased()
+                            let lowerPath = localPath.lowercased()
+                            
+                            if lowerLine.contains("fuse") || lowerLine.contains("sshfs") || lowerLine.contains("nfs") ||
+                               lowerPath.contains("/mounts/") {
+                                let standardPath = (localPath as NSString).standardizingPath
+                                if !mounts.contains(where: { ($0.localPath as NSString).standardizingPath.lowercased() == standardPath.lowercased() }) {
+                                    mounts.append(ActiveMountInfo(source: source, localPath: standardPath))
+                                }
                             }
                         }
                     }
+                    Task { @MainActor in
+                        self?.activeMounts = mounts
+                    }
                 }
-                self.activeMounts = mounts
+            } catch {
+                print("[SSHFSService] Error running mount: \(error)")
             }
-        } catch {
-            print("[SSHFSService] Error running mount: \(error)")
         }
     }
     

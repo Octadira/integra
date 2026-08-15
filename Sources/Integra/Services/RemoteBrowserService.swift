@@ -70,10 +70,17 @@ public class RemoteBrowserService {
                 }
             case .password:
                 if let pass = password, !pass.isEmpty {
-                    let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("integra_askpass_\(UUID().uuidString).sh")
+                    let askpassDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".ssh/integra/askpass", isDirectory: true)
+                    try? FileManager.default.createDirectory(at: askpassDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                    
+                    let tempScript = askpassDir.appendingPathComponent("askpass_\(UUID().uuidString).sh")
+                    
+                    // Use quoted EOF delimiter in /bin/sh to prevent ANY shell parameter, backtick, or dollar expansion (M-2 Fix)
                     let scriptContent = """
-                    #!/bin/bash
-                    echo "\(pass.replacingOccurrences(of: "\"", with: "\\\""))"
+                    #!/bin/sh
+                    /bin/cat << 'INTEGRA_ASKPASS_EOF'
+                    \(pass)
+                    INTEGRA_ASKPASS_EOF
                     """
                     try? scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
                     try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempScript.path)

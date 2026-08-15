@@ -5,6 +5,24 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-08-15
+
+### Security & Fixed
+- **Unique Socket Naming & Exact Directory Mapping (`SSHProfile.swift` & `RemoteExecService.swift`) [M-3 Fix]**:
+  - ControlMaster sockets are now uniquely keyed by profile UUID (`integra_<uuid>.sock`), eliminating socket collision and overwrite between similarly named profiles.
+  - Active mount paths are registered via exact mapping files (`integra_<uuid>.mount`); `integra-exec` now performs exact directory and subfolder matching rather than substring globbing.
+- **AskPass Hardening in Remote Directory Browser (`RemoteBrowserService.swift`) [M-2 Fix]**:
+  - Temporary askpass scripts now use quoted here-doc delimiters (`cat << 'INTEGRA_ASKPASS_EOF'`) in `/bin/sh` to prevent shell parameter/backtick expansion.
+  - Askpass scripts are stored in a private `~/.ssh/integra/askpass/` directory with strict `0700` POSIX permissions and cleaned up immediately in `defer`.
+- **Main Thread Offloading (`SSHFSService.swift` & `RemoteExecService.swift`) [L-7 Fix]**:
+  - Offloaded `/sbin/mount` polling and `stopControlSocket` process executions to `Task.detached`, ensuring zero `@MainActor` thread blocks.
+- **Backslash Sanitization in Terminal Launcher (`TerminalService.swift`) [L-4 Fix]**:
+  - Escaped backslash characters (`\`) in profile names before embedding in `.command` script headers, preventing shell syntax breakage.
+- **Log File Rotation (`IntegraLogger.swift`) [L-3 Fix]**:
+  - Added automatic log file rotation to `integra.log.1` when `~/Library/Logs/Integra/integra.log` exceeds 5 MB.
+
+---
+
 ## [0.8.1] - 2026-08-15
 
 ### Fixed

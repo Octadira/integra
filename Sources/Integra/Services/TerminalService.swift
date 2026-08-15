@@ -16,7 +16,7 @@ public class TerminalService {
         let userSpec = profile.effectiveUser
         let safeHost = profile.host.replacingOccurrences(of: "'", with: "'\\''")
         let safeUser = userSpec.replacingOccurrences(of: "'", with: "'\\''")
-        let safeTitle = profile.name.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "$", with: "\\$").replacingOccurrences(of: "`", with: "\\`")
+        let safeTitle = profile.name.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "$", with: "\\$").replacingOccurrences(of: "`", with: "\\`")
         
         let sshCmd = "ssh -p \(profile.port) '\(safeUser)'@'\(safeHost)'"
         

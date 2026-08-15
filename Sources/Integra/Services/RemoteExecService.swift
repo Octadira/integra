@@ -83,22 +83,31 @@ public class RemoteExecService: ObservableObject {
                     userInfo: [NSLocalizedDescriptionKey: errStr.isEmpty ? "Failed to establish OpenSSH Control Socket (Exit \(process.terminationStatus))" : errStr]
                 )
             }
+            
+            // Save mount mapping file for exact path matching in integra-exec (M-3 Fix)
+            let mountPath = (profile.defaultMountPath as NSString).standardizingPath
+            try? mountPath.write(toFile: profile.controlMountMapPath, atomically: true, encoding: .utf8)
         }.value
     }
     
     public func stopControlSocket(for profile: SSHProfile) {
         let socketPath = profile.controlSocketPath
-        guard FileManager.default.fileExists(atPath: socketPath) else { return }
-        
+        let mapPath = profile.controlMountMapPath
         let destination = "\(profile.effectiveUser)@\(profile.host)"
         
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
-        process.arguments = ["-O", "exit", "-S", socketPath, destination]
-        try? process.run()
-        process.waitUntilExit()
-        
-        try? FileManager.default.removeItem(atPath: socketPath)
+        Task.detached(priority: .userInitiated) {
+            if FileManager.default.fileExists(atPath: socketPath) {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
+                process.arguments = ["-O", "exit", "-S", socketPath, destination]
+                try? process.run()
+                process.waitUntilExit()
+                try? FileManager.default.removeItem(atPath: socketPath)
+            }
+            if FileManager.default.fileExists(atPath: mapPath) {
+                try? FileManager.default.removeItem(atPath: mapPath)
+            }
+        }
     }
     
     public func isSocketActive(for profile: SSHProfile) -> Bool {
@@ -211,7 +220,7 @@ public class RemoteExecService: ObservableObject {
             exit 1
         fi
 
-        CURRENT_DIR="$(pwd)"
+        CURRENT_DIR="$(pwd -P)"
         SOCKET_DIR="$HOME/.ssh/integra/sockets"
 
         # Determine interactive pseudo-terminal flag (-t vs -T)
@@ -225,27 +234,23 @@ public class RemoteExecService: ObservableObject {
         REMOTE_SUBPATH=""
 
         if [ -d "$SOCKET_DIR" ]; then
-            # Scan active control sockets in private directory
-            for SOCK in "$SOCKET_DIR"/integra_ctl_*.sock; do
-                if [ -S "$SOCK" ]; then
-                    BASE_SOCK_NAME="$(basename "$SOCK")"
-                    SERVER_KEY="${BASE_SOCK_NAME#integra_ctl_}"
-                    SERVER_KEY="${SERVER_KEY%.sock}"
+            # Check all registered active mount maps for exact directory matching (M-3 Fix)
+            for MAP_FILE in "$SOCKET_DIR"/integra_*.mount; do
+                if [ -f "$MAP_FILE" ]; then
+                    MOUNT_PATH="$(cat "$MAP_FILE" 2>/dev/null)"
+                    SOCK="${MAP_FILE%.mount}.sock"
                     
-                    CURR_LOWER="$(echo "$CURRENT_DIR" | tr '[:upper:]' '[:lower:]')"
-                    
-                    # Case-insensitive match on mount directory
-                    if [[ "$CURR_LOWER" == *"/mounts/$SERVER_KEY"* ]] || [[ "$CURR_LOWER" == *"/mounts/"*"$SERVER_KEY"* ]]; then
-                        FOUND_SOCKET="$SOCK"
-                        
-                        # Extract inner subpath
-                        AFTER_MOUNTS="${CURRENT_DIR#*/[Mm][Oo][Uu][Nn][Tt][Ss]/}"
-                        INNER_PATH="${AFTER_MOUNTS#*/}"
-                        
-                        if [ "$AFTER_MOUNTS" != "$INNER_PATH" ] && [ -n "$INNER_PATH" ]; then
-                            REMOTE_SUBPATH="/${INNER_PATH#/}"
+                    if [ -S "$SOCK" ] && [ -n "$MOUNT_PATH" ]; then
+                        # Exact directory or subfolder matching
+                        if [ "$CURRENT_DIR" = "$MOUNT_PATH" ]; then
+                            FOUND_SOCKET="$SOCK"
+                            REMOTE_SUBPATH=""
+                            break
+                        elif [[ "$CURRENT_DIR" == "$MOUNT_PATH/"* ]]; then
+                            FOUND_SOCKET="$SOCK"
+                            REMOTE_SUBPATH="${CURRENT_DIR#$MOUNT_PATH}"
+                            break
                         fi
-                        break
                     fi
                 fi
             done
