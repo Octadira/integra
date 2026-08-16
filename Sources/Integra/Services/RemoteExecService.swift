@@ -10,8 +10,36 @@ public class RemoteExecService: ObservableObject {
     @Published public var lastOutput: [UUID: String] = [:]
     @Published public var isStartingSocket: [UUID: Bool] = [:]
     
+    private var watchdogTimer: Timer?
+    
     public init() {
         installCLIHelperIfNeeded()
+        startWatchdog()
+    }
+    
+    private func startWatchdog() {
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 25.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.performSocketHealthCheck()
+            }
+        }
+    }
+    
+    public func performSocketHealthCheck() {
+        let store = ProfileStore.shared
+        let sshfsService = SSHFSService.shared
+        
+        for profile in store.profiles {
+            if sshfsService.isProfileMounted(profile) {
+                let socketPath = profile.controlSocketPath
+                if !FileManager.default.fileExists(atPath: socketPath) && isStartingSocket[profile.id] != true {
+                    IntegraLogger.shared.log("[RemoteExecService] Socket missing for active mount \(profile.name); auto-reconnecting...")
+                    Task {
+                        try? await self.startControlSocket(for: profile)
+                    }
+                }
+            }
+        }
     }
     
     public func startControlSocket(for profile: SSHProfile) async throws {
@@ -38,11 +66,12 @@ public class RemoteExecService: ObservableObject {
             "-M", // Master mode for connection sharing
             "-S", socketPath,
             "-p", "\(profile.port)",
-            "-o", "ControlPersist=2h",
-            "-o", "ServerAliveInterval=15",
-            "-o", "ServerAliveCountMax=3",
+            "-o", "ControlPersist=yes", // Stay open indefinitely until unmount
+            "-o", "ServerAliveInterval=20",
+            "-o", "ServerAliveCountMax=6",
+            "-o", "TCPKeepAlive=yes",
             "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "ConnectTimeout=8",
+            "-o", "ConnectTimeout=10",
             "-o", "BatchMode=yes"
         ]
         

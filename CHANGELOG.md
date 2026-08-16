@@ -5,6 +5,16 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2026-08-16
+
+### Fixed
+- **OpenSSH ControlMaster Indefinite Persistence & Health Watchdog (`RemoteExecService.swift`)**:
+  - Configured `ControlPersist=yes` replacing the previous `2h` idle timeout, ensuring control sockets remain active indefinitely while server mounts are connected.
+  - Added OS-level TCP Keep-Alive (`TCPKeepAlive=yes`) with robust heartbeat parameters (`ServerAliveInterval=20`, `ServerAliveCountMax=6`) to survive transient network lag without dropping sockets.
+  - Implemented an automated background socket watchdog running every 25 seconds that detects any dropped sockets on mounted servers and auto-heals them transparently.
+
+---
+
 ## [0.8.5] - 2026-08-16
 
 ### Fixed
