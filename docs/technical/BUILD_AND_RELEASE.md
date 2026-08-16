@@ -65,3 +65,19 @@ Every AI agent and contributor MUST follow the SemVer checklist defined in `AGEN
 4. Update version string in `Sources/Integra/Views/SidebarView.swift`.
 5. Execute `./scripts/package_app.sh` to compile and package all artifacts.
 6. Commit changes and create matching Git tag `vX.Y.Z`.
+
+---
+
+## 6. Distribution Channels
+
+Integra supports three primary distribution channels:
+
+1. **One-Line Instant Installer (`scripts/install.sh`)**:
+   - URL: `https://raw.githubusercontent.com/Octadira/integra/main/scripts/install.sh`
+   - Automatically downloads the latest release DMG, mounts it, copies `Integra.app` to `/Applications`, and clears Gatekeeper quarantine (`xattr -cr`).
+2. **Homebrew Cask (`Casks/integra.rb`)**:
+   - Users install via: `brew install --cask octadira/integra/integra`
+   - Automatically maintained and updated with new SHA256 checksums on each release via `scripts/publish_github_release.sh`.
+3. **Manual DMG Download**:
+   - Downloadable from GitHub & Forgejo Releases.
+
