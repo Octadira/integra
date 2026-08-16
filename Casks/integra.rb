@@ -11,6 +11,11 @@ cask "integra" do
 
   app "Integra.app"
 
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-cr", "#{appdir}/Integra.app"]
+  end
+
   zap trash: [
     "~/Library/Application Support/Integra",
     "~/Library/Logs/Integra",
