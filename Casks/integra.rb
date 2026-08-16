@@ -7,7 +7,7 @@ cask "integra" do
   desc "Native macOS SSHFS & AI Agent Workspace Manager"
   homepage "https://github.com/Octadira/integra"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Integra.app"
 
