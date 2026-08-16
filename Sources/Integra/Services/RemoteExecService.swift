@@ -117,8 +117,10 @@ public class RemoteExecService: ObservableObject {
     
     public func recoverControlSocketsIfNeeded(store: ProfileStore) {
         Task {
+            // Short grace period to let network routes and DNS stabilize
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
             for profile in store.profiles {
-                if SSHFSService.shared.isProfileMounted(profile) && !self.isSocketActive(for: profile) {
+                if SSHFSService.shared.isProfileMounted(profile) {
                     try? await self.startControlSocket(for: profile)
                 }
             }

@@ -64,8 +64,8 @@ public class NetworkRecoveryService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                // Delay 2 seconds after wake to allow Wi-Fi negotiation
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                // Delay 2.5 seconds after wake to allow Wi-Fi & Tailscale negotiation
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
                 self?.triggerRecovery(reason: "System woke from sleep")
             }
         }
@@ -123,6 +123,11 @@ public class NetworkRecoveryService: ObservableObject {
                 self.isRecovering = false
                 self.recoveryStatusMessage = nil
                 self.activeRecoveryTasks.removeValue(forKey: profile.id)
+                
+                // Reconnect socket for AI bridge on successful mount recovery
+                if AppSettings.shared.enableDeveloperAITools {
+                    try? await RemoteExecService.shared.startControlSocket(for: profile)
+                }
             } catch {
                 print("[NetworkRecoveryService] Recovery attempt \(attempt + 1) failed for \(profile.name): \(error.localizedDescription)")
                 self.recoverMountWithBackoff(profile: profile, sshfsService: sshfsService, attempt: attempt + 1)

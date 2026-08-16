@@ -28,7 +28,7 @@ public struct SettingsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                             
-                            Text("v0.8.4")
+                            Text("v0.8.5")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 8)

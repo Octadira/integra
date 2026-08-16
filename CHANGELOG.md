@@ -5,6 +5,16 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-08-16
+
+### Fixed
+- **Automatic OpenSSH ControlMaster Socket Recovery on Sleep/Wake (`NetworkRecoveryService.swift` & `RemoteExecService.swift`)**:
+  - Resolved an issue where OpenSSH ControlMaster sockets remained disconnected after macOS woke from sleep while the filesystem mount reconnected.
+  - Sockets are now unconditionally cleaned of dead TCP handles and re-established upon system wake and after every network recovery cycle.
+  - Unified `AppSettings.shared` singleton in `SSHFSService.mount()` ensuring developer and AI tool bridges always initialize automatically on reconnect.
+
+---
+
 ## [0.8.4] - 2026-08-16
 
 ### Fixed

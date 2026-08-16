@@ -194,7 +194,7 @@ public class SSHFSService: ObservableObject {
         }
         
         // Developer & AI Tools: Inject AGENTS.md / CLAUDE.md and start control socket
-        let settings = AppSettings()
+        let settings = AppSettings.shared
         if settings.enableDeveloperAITools {
             AgentInstructionService.shared.injectInstructions(for: profile)
             try? await RemoteExecService.shared.startControlSocket(for: profile)
