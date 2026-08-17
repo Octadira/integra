@@ -3,11 +3,11 @@
 ## Milestone Overview
 
 ```
-  v0.2.0 (Stabilization)       v0.4.0 (Network Recovery)     v0.6.0 (AI Bridge & AGENTS.md)  v0.8.5 (Sleep/Wake Socket Healing)
+  v0.2.0 (Stabilization)       v0.4.0 (Network Recovery)     v0.6.0 (AI Bridge & AGENTS.md)  v0.8.6 (Indefinite Socket Keep-Alive)
        [Completed]                  [Completed]                  [Completed]                     [Completed]
-  * Native Swift UI            * Network Recovery Engine     * Multi-Port SSH Forwarding    * Socket Auto-Reconnect on Wake
-  * KEXT-Free FUSE-T           * Exponential Backoff         * Remote CLI (integra-exec)    * Compact Socket sun_path (<75B)
-  * Tailscale & Desktop Pin    * Sleep/Wake Auto-Healing     * AGENTS.md/CLAUDE.md Engine   * Hardened AskPass & Log Rotation
+  * Native Swift UI            * Network Recovery Engine     * Multi-Port SSH Forwarding    * ControlPersist=yes (No Timeout)
+  * KEXT-Free FUSE-T           * Exponential Backoff         * Remote CLI (integra-exec)    * 25s Socket Health Watchdog
+  * Tailscale & Desktop Pin    * Sleep/Wake Auto-Healing     * AGENTS.md/CLAUDE.md Engine   * TCP Keep-Alive & Auto-Reconnect
 ```
 
 ---

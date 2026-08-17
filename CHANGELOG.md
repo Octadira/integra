@@ -5,6 +5,16 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-08-17
+
+### Added
+- **Automated 1-Click GUI Dependency Installer (`DependencyService.swift` & `DependencyDoctorView.swift`)**:
+  - Implemented 1-click in-app installer for FUSE-T and SSHFS, completely eliminating the need to open or interact with Terminal.app.
+  - Automatically downloads official packages, validates cryptographic SHA256 checksums (`CryptoKit`), and executes the installation directly via macOS native Administrator Authorization (Touch ID or Password).
+  - Integrated real-time animated progress indicators and live status updates directly within the Dependency Doctor interface.
+
+---
+
 ## [0.8.6] - 2026-08-16
 
 ### Fixed

@@ -1,4 +1,6 @@
 import Foundation
+import CryptoKit
+import AppKit
 
 @MainActor
 public class DependencyService: ObservableObject {
@@ -9,13 +11,16 @@ public class DependencyService: ObservableObject {
     ]
     
     @Published public var isInitialCheckComplete: Bool = false
+    @Published public var isInstalling: Bool = false
+    @Published public var installStatusMessage: String?
+    @Published public var installErrorMessage: String?
     
     public init() {
         // Run initial fast check on creation so no false warning badges appear on app launch
         fastInitialCheck()
     }
     
-    private func fastInitialCheck() {
+    public func fastInitialCheck() {
         let brewPath = findExecutable(name: "brew")
         items[0].state = brewPath != nil ? .installed(path: brewPath!) : .missing
         
@@ -75,6 +80,82 @@ public class DependencyService: ObservableObject {
             }
         }
         return nil
+    }
+    
+    public func installDependenciesAutomatically() async {
+        guard !isInstalling else { return }
+        isInstalling = true
+        installErrorMessage = nil
+        installStatusMessage = "Starting automated installation..."
+        
+        defer {
+            isInstalling = false
+        }
+        
+        let fuseTURL = URL(string: "https://github.com/macos-fuse-t/fuse-t/releases/download/1.2.7/fuse-t-macos-installer-1.2.7.pkg")!
+        let fuseTSHA256 = "6a29c747e61a86a405a189efc3de42812d73147135f93a1bb0624c1e7b90e654"
+        
+        let sshfsURL = URL(string: "https://github.com/macos-fuse-t/sshfs/releases/download/1.0.2/sshfs-macos-installer-1.0.2.pkg")!
+        let sshfsSHA256 = "8875fe7a932893cef6333288ccf6f6e3844d3fd6825ea39e878b020466d259ca"
+        
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("integra_pkg_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+        
+        let fuseTPkgPath = tempDir.appendingPathComponent("fuse-t.pkg").path
+        let sshfsPkgPath = tempDir.appendingPathComponent("sshfs.pkg").path
+        
+        do {
+            // 1. Download official FUSE-T package & verify SHA256
+            installStatusMessage = "Downloading official FUSE-T package..."
+            let (fuseData, _) = try await URLSession.shared.data(from: fuseTURL)
+            let fuseHash = SHA256.hash(data: fuseData).map { String(format: "%02x", $0) }.joined()
+            guard fuseHash == fuseTSHA256 else {
+                throw NSError(domain: "DependencyService", code: 1, userInfo: [NSLocalizedDescriptionKey: "FUSE-T SHA256 checksum verification failed."])
+            }
+            try fuseData.write(to: URL(fileURLWithPath: fuseTPkgPath))
+            
+            // 2. Download official SSHFS package & verify SHA256
+            installStatusMessage = "Downloading official SSHFS package..."
+            let (sshfsData, _) = try await URLSession.shared.data(from: sshfsURL)
+            let sshfsHash = SHA256.hash(data: sshfsData).map { String(format: "%02x", $0) }.joined()
+            guard sshfsHash == sshfsSHA256 else {
+                throw NSError(domain: "DependencyService", code: 2, userInfo: [NSLocalizedDescriptionKey: "SSHFS SHA256 checksum verification failed."])
+            }
+            try sshfsData.write(to: URL(fileURLWithPath: sshfsPkgPath))
+            
+            // 3. Prompt native macOS Administrator Authorization (Touch ID / Password)
+            installStatusMessage = "Waiting for administrator authorization (Touch ID / Password)..."
+            
+            let installScript = """
+            do shell script "/usr/sbin/installer -pkg '\(fuseTPkgPath)' -target / && /usr/sbin/installer -pkg '\(sshfsPkgPath)' -target /" with administrator privileges
+            """
+            
+            try await Task.detached(priority: .userInitiated) {
+                var errorDict: NSDictionary?
+                guard let appleScript = NSAppleScript(source: installScript) else {
+                    throw NSError(domain: "DependencyService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize AppleScript authorization engine."])
+                }
+                appleScript.executeAndReturnError(&errorDict)
+                if let err = errorDict {
+                    let errMsg = err[NSAppleScript.errorMessage] as? String ?? "Installation was cancelled or rejected by administrator."
+                    throw NSError(domain: "DependencyService", code: 4, userInfo: [NSLocalizedDescriptionKey: errMsg])
+                }
+            }.value
+            
+            // 4. Verify frameworks and refresh status
+            installStatusMessage = "Verifying installed frameworks..."
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            
+            fastInitialCheck()
+            installStatusMessage = nil
+        } catch {
+            installErrorMessage = error.localizedDescription
+            installStatusMessage = nil
+        }
     }
     
     public func generateInstallScript() -> String {
