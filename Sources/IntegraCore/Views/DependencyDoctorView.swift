@@ -6,6 +6,8 @@ public struct DependencyDoctorView: View {
     @State private var copiedToClipboard = false
     @State private var showAdvancedOptions = false
     
+    public init() {}
+    
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {

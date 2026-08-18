@@ -7,14 +7,26 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "Integra", targets: ["Integra"])
+        .executable(name: "Integra", targets: ["Integra"]),
+        .executable(name: "IntegraTestRunner", targets: ["IntegraTestRunner"]),
+        .library(name: "IntegraCore", targets: ["IntegraCore"])
     ],
     dependencies: [],
     targets: [
+        .target(
+            name: "IntegraCore",
+            dependencies: [],
+            path: "Sources/IntegraCore"
+        ),
         .executableTarget(
             name: "Integra",
-            dependencies: [],
-            path: "Sources/Integra"
+            dependencies: ["IntegraCore"],
+            path: "Sources/IntegraApp"
+        ),
+        .executableTarget(
+            name: "IntegraTestRunner",
+            dependencies: ["IntegraCore"],
+            path: "Tests/IntegraTestRunner"
         )
     ]
 )

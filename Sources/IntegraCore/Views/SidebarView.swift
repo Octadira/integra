@@ -13,6 +13,10 @@ public struct SidebarView: View {
     @EnvironmentObject var sshfsService: SSHFSService
     @EnvironmentObject var depService: DependencyService
     
+    public init(selectedTab: Binding<NavigationTab>) {
+        self._selectedTab = selectedTab
+    }
+    
     private var activeCount: Int {
         store.profiles.filter { sshfsService.isProfileMounted($0) }.count
     }

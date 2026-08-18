@@ -4,6 +4,8 @@ public struct MenuBarView: View {
     @EnvironmentObject var store: ProfileStore
     @EnvironmentObject var sshfsService: SSHFSService
     
+    public init() {}
+    
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Integra SSHFS Manager")

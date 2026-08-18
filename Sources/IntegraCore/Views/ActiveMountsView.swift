@@ -14,6 +14,8 @@ public struct ActiveMountsView: View {
         store.profiles.filter { sshfsService.isProfileMounted($0) }
     }
     
+    public init() {}
+    
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header

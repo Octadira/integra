@@ -1,11 +1,25 @@
 import Foundation
 
-public struct SSHConfigEntry {
+public struct SSHConfigEntry: Equatable {
     public let host: String
     public let hostName: String?
     public let user: String?
     public let port: Int?
     public let identityFile: String?
+    
+    public init(
+        host: String,
+        hostName: String? = nil,
+        user: String? = nil,
+        port: Int? = nil,
+        identityFile: String? = nil
+    ) {
+        self.host = host
+        self.hostName = hostName
+        self.user = user
+        self.port = port
+        self.identityFile = identityFile
+    }
 }
 
 public class SSHConfigParser {
@@ -18,6 +32,10 @@ public class SSHConfigParser {
             return []
         }
         
+        return parse(content: content)
+    }
+    
+    public static func parse(content: String) -> [SSHConfigEntry] {
         var entries: [SSHConfigEntry] = []
         var currentHost: String?
         var hostName: String?

@@ -16,6 +16,9 @@ cd "$PROJECT_DIR"
 hdiutil detach "/Volumes/$VOL_NAME" 2>/dev/null || true
 hdiutil detach "/Volumes/$VOL_NAME Installer" 2>/dev/null || true
 
+echo "--> Running Automated Test Suite..."
+./scripts/run_tests.sh
+
 echo "--> Compiling Swift Release Binary..."
 swift build -c release
 
