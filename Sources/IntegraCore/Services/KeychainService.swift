@@ -75,4 +75,29 @@ public class KeychainService {
         let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
     }
+    
+    // MARK: - Sudo Specific Keychain Helpers
+    
+    public func saveSudoPassword(for profileId: UUID, password: String) -> Bool {
+        return savePassword(account: "sudo_\(profileId.uuidString)", password: password)
+    }
+    
+    public func getSudoPassword(for profileId: UUID) -> String? {
+        return getPassword(account: "sudo_\(profileId.uuidString)")
+    }
+    
+    public func deleteSudoPassword(for profileId: UUID) -> Bool {
+        return deletePassword(account: "sudo_\(profileId.uuidString)")
+    }
+    
+    public func getEffectiveSudoPassword(for profile: SSHProfile) -> String? {
+        if let explicitSudo = getSudoPassword(for: profile.id), !explicitSudo.isEmpty {
+            return explicitSudo
+        }
+        if profile.useSSHPasswordForSudo {
+            return getPassword(account: profile.id.uuidString)
+        }
+        return nil
+    }
 }
+

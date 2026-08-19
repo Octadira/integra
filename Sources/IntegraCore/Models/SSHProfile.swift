@@ -1,6 +1,6 @@
 import Foundation
 
-public enum AuthMethod: String, Codable, CaseIterable, Identifiable {
+public enum AuthMethod: String, Codable, CaseIterable, Identifiable, Sendable {
     case none = "Tailscale / SSH Agent"
     case key = "SSH Key"
     case password = "Password"
@@ -8,7 +8,23 @@ public enum AuthMethod: String, Codable, CaseIterable, Identifiable {
     public var id: String { self.rawValue }
 }
 
-public struct PortTunnelRule: Identifiable, Codable, Equatable {
+public enum SudoAuthPolicy: String, Codable, CaseIterable, Identifiable, Sendable {
+    case sessionCache = "Ask Once per Session (15m Cache)"
+    case touchIDOrPrompt = "Always Ask (Touch ID / Prompt)"
+    case autoApprove = "Auto-Approve from Keychain"
+    
+    public var id: String { self.rawValue }
+    
+    public var icon: String {
+        switch self {
+        case .sessionCache: return "timer"
+        case .touchIDOrPrompt: return "touchid"
+        case .autoApprove: return "bolt.shield.fill"
+        }
+    }
+}
+
+public struct PortTunnelRule: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
     public var name: String
     public var localPort: Int
@@ -33,7 +49,7 @@ public struct PortTunnelRule: Identifiable, Codable, Equatable {
     }
 }
 
-public struct SSHProfile: Identifiable, Codable, Equatable {
+public struct SSHProfile: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
     public var name: String
     public var host: String
@@ -46,6 +62,8 @@ public struct SSHProfile: Identifiable, Codable, Equatable {
     public var autoMount: Bool
     public var createDesktopShortcut: Bool
     public var portTunnels: [PortTunnelRule]
+    public var useSSHPasswordForSudo: Bool
+    public var sudoAuthPolicy: SudoAuthPolicy
     public var createdAt: Date
     
     public init(
@@ -61,6 +79,8 @@ public struct SSHProfile: Identifiable, Codable, Equatable {
         autoMount: Bool = false,
         createDesktopShortcut: Bool = false,
         portTunnels: [PortTunnelRule] = [],
+        useSSHPasswordForSudo: Bool = true,
+        sudoAuthPolicy: SudoAuthPolicy = .sessionCache,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -75,7 +95,28 @@ public struct SSHProfile: Identifiable, Codable, Equatable {
         self.autoMount = autoMount
         self.createDesktopShortcut = createDesktopShortcut
         self.portTunnels = portTunnels
+        self.useSSHPasswordForSudo = useSSHPasswordForSudo
+        self.sudoAuthPolicy = sudoAuthPolicy
         self.createdAt = createdAt
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        host = try container.decodeIfPresent(String.self, forKey: .host) ?? ""
+        port = try container.decodeIfPresent(Int.self, forKey: .port) ?? 22
+        user = try container.decodeIfPresent(String.self, forKey: .user) ?? ""
+        authMethod = try container.decodeIfPresent(AuthMethod.self, forKey: .authMethod) ?? .none
+        remotePath = try container.decodeIfPresent(String.self, forKey: .remotePath) ?? "/"
+        localPath = try container.decodeIfPresent(String.self, forKey: .localPath) ?? ""
+        identityFile = try container.decodeIfPresent(String.self, forKey: .identityFile) ?? "~/.ssh/id_rsa"
+        autoMount = try container.decodeIfPresent(Bool.self, forKey: .autoMount) ?? false
+        createDesktopShortcut = try container.decodeIfPresent(Bool.self, forKey: .createDesktopShortcut) ?? false
+        portTunnels = try container.decodeIfPresent([PortTunnelRule].self, forKey: .portTunnels) ?? []
+        useSSHPasswordForSudo = try container.decodeIfPresent(Bool.self, forKey: .useSSHPasswordForSudo) ?? true
+        sudoAuthPolicy = try container.decodeIfPresent(SudoAuthPolicy.self, forKey: .sudoAuthPolicy) ?? .sessionCache
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
     }
     
     public var effectiveUser: String {

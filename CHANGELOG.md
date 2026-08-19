@@ -5,6 +5,26 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-08-19
+
+### Added
+- **Native Sudo Privilege Escalation for AI Assistants (`SudoAuthManager.swift` & `KeychainService.swift`)**:
+  - Implemented secure remote `sudo` command execution over OpenSSH ControlMaster sockets with automated password injection via in-memory `sudo -S` pipes.
+  - Sudo passwords are encrypted exclusively in Apple's native macOS Keychain (`Security.framework`) and are never exposed to AI models or chat logs.
+- **Interactive Touch ID & Native macOS Sudo Authorization**:
+  - Added Touch ID and native macOS GUI dialog authorization prompts when AI agents request `sudo` privilege escalation.
+  - Added configurable Sudo Authorization Policies on server profiles:
+    - *Ask Once per Session* (15-minute grace period cache - default).
+    - *Always Ask* (Touch ID or prompt required on every single sudo call).
+    - *Auto-Approve from Keychain* (Autonomous background execution).
+  - Just-in-Time (JIT) password prompt allowing users to enter and save sudo credentials on demand during an AI session.
+- **Profile Sudo Configuration UI (`ProfileEditView.swift`)**:
+  - Added dedicated *Sudo & AI Privilege Escalation* section in server connection editor with Keychain synchronization and SSH password inheritance toggle.
+- **Expanded Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added 3 new test suites for Sudo session caching, Keychain CRUD operations, and fallback resolution (28/28 tests passing).
+
+---
+
 ## [0.10.3] - 2026-08-19
 
 ### Added

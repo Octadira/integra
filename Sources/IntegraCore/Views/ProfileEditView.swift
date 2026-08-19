@@ -20,6 +20,10 @@ public struct ProfileEditView: View {
     @State private var createDesktopShortcut: Bool = false
     @State private var isShowingRemoteBrowser: Bool = false
     
+    @State private var sudoPasswordInput: String = ""
+    @State private var useSSHPasswordForSudo: Bool = true
+    @State private var sudoAuthPolicy: SudoAuthPolicy = .sessionCache
+    
     @State private var validationError: String?
     
     public init(profile: SSHProfile? = nil) {
@@ -203,7 +207,60 @@ public struct ProfileEditView: View {
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(10)
                     
-                    // Section 4: Options
+                    // Section 4: Sudo & AI Privilege Escalation
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Sudo & AI Privilege Escalation", systemImage: "shield.lefthalf.filled")
+                            .font(.headline)
+                        
+                        Toggle(isOn: $useSSHPasswordForSudo) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Use SSH Password as Sudo Password")
+                                    .font(.subheadline)
+                                Text("Automatically uses the SSH login password for sudo privilege escalation.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        if !useSSHPasswordForSudo || authMethod != .password {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Dedicated Sudo Password (Saved in macOS Keychain)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                SecureField("Enter dedicated sudo / root password", text: $sudoPasswordInput)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                            .padding(.top, 2)
+                        }
+                        
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Sudo Authorization Policy")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Picker("Authorization Mode", selection: $sudoAuthPolicy) {
+                                ForEach(SudoAuthPolicy.allCases) { policy in
+                                    HStack {
+                                        Image(systemName: policy.icon)
+                                        Text(policy.rawValue)
+                                    }
+                                    .tag(policy)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            
+                            Text("Controls when and how the AI agent must request your approval on macOS before running elevated commands.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+                    
+                    // Section 5: Options
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Mount & Desktop Options", systemImage: "gearshape.fill")
                             .font(.headline)
@@ -272,9 +329,12 @@ public struct ProfileEditView: View {
                 identityFile = p.identityFile
                 autoMount = p.autoMount
                 createDesktopShortcut = p.createDesktopShortcut
+                useSSHPasswordForSudo = p.useSSHPasswordForSudo
+                sudoAuthPolicy = p.sudoAuthPolicy
                 if p.authMethod == .password || p.authMethod == .key {
                     passwordInput = KeychainService.shared.getPassword(account: p.id.uuidString) ?? ""
                 }
+                sudoPasswordInput = KeychainService.shared.getSudoPassword(for: p.id) ?? ""
             }
         }
     }
@@ -299,6 +359,8 @@ public struct ProfileEditView: View {
         profile.identityFile = identityFile
         profile.autoMount = autoMount
         profile.createDesktopShortcut = createDesktopShortcut
+        profile.useSSHPasswordForSudo = useSSHPasswordForSudo
+        profile.sudoAuthPolicy = sudoAuthPolicy
         
         if existingProfile != nil {
             store.updateProfile(profile)
@@ -308,6 +370,12 @@ public struct ProfileEditView: View {
         
         if (authMethod == .password || authMethod == .key) && !passwordInput.isEmpty {
             _ = KeychainService.shared.savePassword(account: profile.id.uuidString, password: passwordInput)
+        }
+        
+        if !sudoPasswordInput.isEmpty {
+            _ = KeychainService.shared.saveSudoPassword(for: profile.id, password: sudoPasswordInput)
+        } else if !useSSHPasswordForSudo {
+            _ = KeychainService.shared.deleteSudoPassword(for: profile.id)
         }
         
         dismiss()

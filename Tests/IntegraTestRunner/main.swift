@@ -434,6 +434,66 @@ func main() async {
         TestContext.assertFalse(FileManager.default.fileExists(atPath: claudePath), "In .mcpOnly mode, CLAUDE.md must NOT be created")
     }
     
+    // ---------------------------------------------------------
+    // 9. Sudo & Touch ID Privilege Escalation Tests
+    // ---------------------------------------------------------
+    print("▶︎ Running Suite: Sudo Privilege Escalation & Authorization")
+    
+    TestContext.runTest(suite: "SudoAuthPolicyTests", name: "testSudoProfileDefaultsAndSessionCache") {
+        let profile = SSHProfile(name: "TestServer", host: "192.168.1.10", port: 22, user: "admin")
+        TestContext.assertTrue(profile.useSSHPasswordForSudo, "Default useSSHPasswordForSudo must be true")
+        TestContext.assertEqual(profile.sudoAuthPolicy, .sessionCache, "Default sudoAuthPolicy must be .sessionCache")
+        
+        TestContext.assertFalse(SudoAuthManager.shared.isSessionValid(for: profile.id), "Session should not be valid before authorization")
+        
+        SudoAuthManager.shared.recordAuthorization(for: profile.id)
+        TestContext.assertTrue(SudoAuthManager.shared.isSessionValid(for: profile.id), "Session should be valid immediately after recording")
+        
+        SudoAuthManager.shared.clearAuthorization(for: profile.id)
+        TestContext.assertFalse(SudoAuthManager.shared.isSessionValid(for: profile.id), "Session should be invalid after clearing")
+    }
+    
+    TestContext.runTest(suite: "KeychainSudoTests", name: "testKeychainSudoPasswordCRUD") {
+        let profileId = UUID()
+        let testSudoPass = "SuperSecretSudoPass123!"
+        
+        _ = KeychainService.shared.deleteSudoPassword(for: profileId)
+        TestContext.assertNil(KeychainService.shared.getSudoPassword(for: profileId), "Password must be nil initially")
+        
+        let saved = KeychainService.shared.saveSudoPassword(for: profileId, password: testSudoPass)
+        TestContext.assertTrue(saved, "Saving sudo password to Keychain should succeed")
+        
+        let retrieved = KeychainService.shared.getSudoPassword(for: profileId)
+        TestContext.assertEqual(retrieved, testSudoPass, "Retrieved sudo password must match saved password")
+        
+        let deleted = KeychainService.shared.deleteSudoPassword(for: profileId)
+        TestContext.assertTrue(deleted, "Deleting sudo password should succeed")
+        TestContext.assertNil(KeychainService.shared.getSudoPassword(for: profileId), "Password must be nil after deletion")
+    }
+    
+    TestContext.runTest(suite: "KeychainSudoTests", name: "testEffectiveSudoPasswordFallback") {
+        let profileId = UUID()
+        let sshPass = "LoginSSHPassword999"
+        
+        _ = KeychainService.shared.savePassword(account: profileId.uuidString, password: sshPass)
+        _ = KeychainService.shared.deleteSudoPassword(for: profileId)
+        
+        var profile = SSHProfile(id: profileId, name: "FallbackServer", host: "10.0.0.1", port: 22, user: "user")
+        profile.useSSHPasswordForSudo = true
+        
+        let effectivePass = KeychainService.shared.getEffectiveSudoPassword(for: profile)
+        TestContext.assertEqual(effectivePass, sshPass, "Effective sudo password must fallback to SSH login password when useSSHPasswordForSudo is true")
+        
+        // When explicit sudo password is set, it takes precedence
+        let explicitPass = "DedicatedRootPass777"
+        _ = KeychainService.shared.saveSudoPassword(for: profileId, password: explicitPass)
+        let overridingPass = KeychainService.shared.getEffectiveSudoPassword(for: profile)
+        TestContext.assertEqual(overridingPass, explicitPass, "Explicit sudo password must take precedence over SSH password")
+        
+        _ = KeychainService.shared.deletePassword(account: profileId.uuidString)
+        _ = KeychainService.shared.deleteSudoPassword(for: profileId)
+    }
+    
     print("")
     
     let duration = String(format: "%.3f", CFAbsoluteTimeGetCurrent() - startTime)

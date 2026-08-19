@@ -314,7 +314,9 @@ struct IntegraMCPServer {
             }
             
             let targetSubpath = arguments["working_dir"]?.stringValue
-            let isSudo = arguments["sudo"]?.boolValue ?? false
+            let explicitSudo = arguments["sudo"]?.boolValue ?? false
+            let startsWithSudo = command.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("sudo ")
+            let requiresSudo = explicitSudo || startsWithSudo
             
             // Find matching profile
             guard let matchedProfile = profiles.first(where: {
@@ -335,12 +337,32 @@ struct IntegraMCPServer {
                 return
             }
             
-            var finalCommand = command
-            if isSudo && !command.hasPrefix("sudo ") {
-                finalCommand = "sudo \(command)"
+            var sudoPasswordToInject: String? = nil
+            if requiresSudo {
+                let authResult = await SudoAuthManager.shared.authorizeAndGetPassword(profile: matchedProfile, command: command)
+                guard authResult.isGranted else {
+                    let deniedResult: [String: Any] = [
+                        "content": [
+                            [
+                                "type": "text",
+                                "text": "Sudo Authorization Denied: \(authResult.errorMessage ?? "User cancelled administrative authorization.")"
+                            ]
+                        ],
+                        "isError": true
+                    ]
+                    sendResponse(id: id, result: deniedResult, error: nil)
+                    return
+                }
+                sudoPasswordToInject = authResult.sudoPassword
             }
             
-            let output = await executeRemoteCommand(profile: matchedProfile, command: finalCommand, workingDir: targetSubpath)
+            let output = await executeRemoteCommand(
+                profile: matchedProfile,
+                command: command,
+                workingDir: targetSubpath,
+                requiresSudo: requiresSudo,
+                sudoPassword: sudoPasswordToInject
+            )
             
             let result: [String: Any] = [
                 "content": [
@@ -390,7 +412,13 @@ struct IntegraMCPServer {
         return mountOutput.contains(mountPath)
     }
     
-    private static func executeRemoteCommand(profile: SSHProfile, command: String, workingDir: String?) async -> String {
+    private static func executeRemoteCommand(
+        profile: SSHProfile,
+        command: String,
+        workingDir: String?,
+        requiresSudo: Bool = false,
+        sudoPassword: String? = nil
+    ) async -> String {
         let socketPath = profile.controlSocketPath
         let destination = "\(profile.effectiveUser)@\(profile.host)"
         
@@ -399,9 +427,24 @@ struct IntegraMCPServer {
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
             
             var remoteCmd = command
+            if requiresSudo {
+                var innerCmd = command.trimmingCharacters(in: .whitespacesAndNewlines)
+                if innerCmd.hasPrefix("sudo ") {
+                    innerCmd = String(innerCmd.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                
+                if let pass = sudoPassword, !pass.isEmpty {
+                    let escapedPass = pass.replacingOccurrences(of: "'", with: "'\\''")
+                    let escapedInner = innerCmd.replacingOccurrences(of: "'", with: "'\\''")
+                    remoteCmd = "printf '%s\\n' '\(escapedPass)' | sudo -S -p '' sh -c '\(escapedInner)'"
+                } else {
+                    remoteCmd = "sudo \(innerCmd)"
+                }
+            }
+            
             if let subpath = workingDir, !subpath.isEmpty {
                 let escaped = subpath.replacingOccurrences(of: "'", with: "'\\''")
-                remoteCmd = "if [ -d '\(escaped)' ]; then cd '\(escaped)'; fi && \(command)"
+                remoteCmd = "if [ -d '\(escaped)' ]; then cd '\(escaped)'; fi && \(remoteCmd)"
             }
             
             var args: [String] = []

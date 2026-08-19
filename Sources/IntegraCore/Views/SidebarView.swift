@@ -82,7 +82,7 @@ public struct SidebarView: View {
                         .font(.caption)
                         .fontWeight(.medium)
                     
-                    Text("Integra v0.10.3")
+                    Text("Integra v0.11.0")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
