@@ -396,6 +396,37 @@ func main() async {
         TestContext.assertNotNil(updatedServers?["integra"], "Zed context_servers must have integra entry")
     }
     
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testOpenCodeConfigFormatWithoutTopLevelMCPServers") {
+        let tempDir = NSTemporaryDirectory() + "integra_opencode_test_\(UUID().uuidString)"
+        let configPath = "\(tempDir)/opencode.json"
+        try? FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: tempDir) }
+        
+        // Write initial config with legacy invalid top-level key
+        let initialJson = ["mcpServers": ["old": ["command": "test"]]]
+        let initialData = try! JSONSerialization.data(withJSONObject: initialJson)
+        try! initialData.write(to: URL(fileURLWithPath: configPath))
+        
+        // Emulate install for OpenCode
+        var rootDict = (try? JSONSerialization.jsonObject(with: initialData)) as? [String: Any] ?? [:]
+        var mcpDict = rootDict["mcp"] as? [String: Any] ?? ["enabled": true]
+        var servers = mcpDict["servers"] as? [String: Any] ?? [:]
+        servers["integra"] = [
+            "command": "/Applications/Integra.app/Contents/MacOS/integra-mcp",
+            "args": [] as [String]
+        ]
+        mcpDict["servers"] = servers
+        mcpDict["enabled"] = true
+        rootDict["mcp"] = mcpDict
+        rootDict.removeValue(forKey: "mcpServers")
+        
+        TestContext.assertNil(rootDict["mcpServers"], "OpenCode configuration must NOT contain top-level mcpServers key")
+        TestContext.assertNotNil(rootDict["mcp"], "OpenCode configuration must contain mcp dictionary")
+        let mcp = rootDict["mcp"] as? [String: Any]
+        let mcpServersDict = mcp?["servers"] as? [String: Any]
+        TestContext.assertNotNil(mcpServersDict?["integra"], "mcp.servers must contain integra entry")
+    }
+    
     print("▶︎ Running Suite: AI Integration Modes & Zero-Pollution Lifecycle")
     
     TestContext.runTest(suite: "AIIntegrationModeTests", name: "testHybridModeGeneratesHierarchicalDirectives") {

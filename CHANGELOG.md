@@ -5,6 +5,17 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-08-19
+
+### Fixed
+- **OpenCode Strict JSON Schema Compliance (`MCPConfigService.swift`)**:
+  - Fixed OpenCode (`opencode.json`) configuration parsing error (*`Unrecognized key: mcpServers`*).
+  - OpenCode CLI and Desktop now generate and manage strictly the nested `mcp.servers` dictionary, automatically stripping any unrecognized top-level `mcpServers` keys.
+- **Added Automated Regression Test (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testOpenCodeConfigFormatWithoutTopLevelMCPServers` (29/29 tests passing).
+
+---
+
 ## [0.11.0] - 2026-08-19
 
 ### Added
