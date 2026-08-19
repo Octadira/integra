@@ -82,4 +82,5 @@
 - **`NetworkRecoveryService.swift`**: Uses Apple's `Network.framework` (`NWPathMonitor`) and macOS sleep/wake observers to automatically recover broken mounts and OpenSSH ControlMaster sockets with exponential backoff.
 - **`SSHTunnelService.swift`**: Manages background SSH port forwarding processes, detects local loopback port collisions, and exposes live endpoint URLs for AI agents.
 - **`RemoteExecService.swift`**: Maintains persistent OpenSSH ControlMaster sockets for sub-5ms latency and manages the `~/.local/bin/integra-exec` CLI helper.
+- **`UpdateCheckerService.swift`**: Polls the public release API every 24 hours and upon macOS wake from sleep (`NSWorkspace.didWakeNotification`) to verify SemVer versions and provide non-intrusive UI badging.
 - **`KeychainService.swift`**: Wraps Apple's `Security.framework` (`SecItemAdd`, `SecItemCopyMatching`, `SecItemDelete`) for SSH passwords, private key passphrases, and sudo credentials.

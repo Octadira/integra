@@ -556,6 +556,30 @@ func main() async {
         _ = KeychainService.shared.deleteSudoPassword(for: profileId)
     }
     
+    // ---------------------------------------------------------
+    // 10. Update Checker & SemVer Comparison Tests
+    // ---------------------------------------------------------
+    print("▶︎ Running Suite: Update Checker & SemVer Comparison")
+    
+    TestContext.runTest(suite: "UpdateCheckerTests", name: "testSemVerComparisonNewerVersionDetected") {
+        TestContext.assertTrue(UpdateCheckerService.isVersion("0.13.0", newerThan: "0.12.0"), "0.13.0 must be recognized as newer than 0.12.0")
+        TestContext.assertTrue(UpdateCheckerService.isVersion("1.0.0", newerThan: "0.99.9"), "1.0.0 must be recognized as newer than 0.99.9")
+        TestContext.assertTrue(UpdateCheckerService.isVersion("0.12.1", newerThan: "0.12.0"), "0.12.1 must be recognized as newer than 0.12.0")
+        TestContext.assertTrue(UpdateCheckerService.isVersion("v0.14.0", newerThan: "v0.13.0"), "v0.14.0 must be recognized as newer than v0.13.0 with v prefix")
+    }
+    
+    TestContext.runTest(suite: "UpdateCheckerTests", name: "testSemVerComparisonEqualOrOlderIgnored") {
+        TestContext.assertFalse(UpdateCheckerService.isVersion("0.12.0", newerThan: "0.12.0"), "Equal versions must return false")
+        TestContext.assertFalse(UpdateCheckerService.isVersion("0.11.0", newerThan: "0.12.0"), "Older minor version must return false")
+        TestContext.assertFalse(UpdateCheckerService.isVersion("0.9.9", newerThan: "1.0.0"), "Older major version must return false")
+        TestContext.assertFalse(UpdateCheckerService.isVersion("0.12.0", newerThan: "0.12.1"), "Older patch version must return false")
+    }
+    
+    TestContext.runTest(suite: "UpdateCheckerTests", name: "testVersionStringSanitization") {
+        TestContext.assertEqual(UpdateCheckerService.cleanVersionString("v1.2.3"), "1.2.3", "v prefix must be stripped")
+        TestContext.assertEqual(UpdateCheckerService.cleanVersionString(" 0.13.0 \n"), "0.13.0", "Surrounding whitespace must be trimmed")
+    }
+    
     print("")
     
     let duration = String(format: "%.3f", CFAbsoluteTimeGetCurrent() - startTime)

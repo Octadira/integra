@@ -5,6 +5,22 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-08-19
+
+### Added
+- **Native Background Update Checker (`UpdateCheckerService.swift`)**:
+  - Implemented ultra-lightweight background release checker polling the official GitHub / Forgejo release API once every 24 hours.
+  - Automatically handles macOS sleep/wake transitions via `NSWorkspace.didWakeNotification` without consuming extra battery or background CPU cycles.
+  - Accurate SemVer parsing and comparison logic (`isVersion(_:newerThan:)`).
+- **Dedicated Software Updates Card in Settings (`SettingsView.swift`)**:
+  - Displays current version status, last checked timestamp, and an on-demand *„Check for Updates”* manual trigger.
+- **Discrete Non-Intrusive Update Notifications (`SidebarView.swift` & `MenuBarView.swift`)**:
+  - Non-disruptive informational badges in the Sidebar status footer and Menu Bar menu informing users when a new version is available without modal popups or automatic installs.
+- **Automated Test Suite Expansion (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `UpdateCheckerTests` covering SemVer comparison, older version filtering, and version string sanitization (33/33 tests passing).
+
+---
+
 ## [0.12.0] - 2026-08-19
 
 ### Added

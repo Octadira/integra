@@ -12,6 +12,7 @@ public struct SidebarView: View {
     @EnvironmentObject var store: ProfileStore
     @EnvironmentObject var sshfsService: SSHFSService
     @EnvironmentObject var depService: DependencyService
+    @ObservedObject var updateChecker = UpdateCheckerService.shared
     
     public init(selectedTab: Binding<NavigationTab>) {
         self._selectedTab = selectedTab
@@ -82,12 +83,26 @@ public struct SidebarView: View {
                         .font(.caption)
                         .fontWeight(.medium)
                     
-                    Text("Integra v0.12.0")
+                    Text("Integra v0.13.0")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
                 
                 Spacer()
+                
+                if updateChecker.updateAvailable, let newVer = updateChecker.latestVersion {
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 9))
+                        Text(newVer)
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.blue.opacity(0.15))
+                    .foregroundColor(.blue)
+                    .clipShape(Capsule())
+                }
             }
             .padding(12)
             .background(Color(NSColor.controlBackgroundColor).opacity(0.6))

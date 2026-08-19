@@ -3,6 +3,7 @@ import SwiftUI
 public struct MenuBarView: View {
     @EnvironmentObject var store: ProfileStore
     @EnvironmentObject var sshfsService: SSHFSService
+    @ObservedObject var updateChecker = UpdateCheckerService.shared
     
     public init() {}
     
@@ -53,6 +54,20 @@ public struct MenuBarView: View {
                     }
                     .padding(.horizontal)
                 }
+            }
+            
+            if updateChecker.updateAvailable, let newVer = updateChecker.latestVersion {
+                Divider()
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .foregroundColor(.blue)
+                        .font(.caption)
+                    Text("New Version: \(newVer)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                }
+                .padding(.horizontal)
             }
             
             Divider()

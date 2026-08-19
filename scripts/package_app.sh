@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.12.0"
+VERSION="0.13.0"
 echo "=== Building Integra v$VERSION (Native Swift & Clean Drag-and-Drop DMG) ==="
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$PROJECT_DIR/dist"

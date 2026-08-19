@@ -6,6 +6,7 @@ public struct SettingsView: View {
     @EnvironmentObject var depService: DependencyService
     @EnvironmentObject var recoveryService: NetworkRecoveryService
     @ObservedObject var mcpConfig = MCPConfigService.shared
+    @ObservedObject var updateChecker = UpdateCheckerService.shared
     
     @State private var autoUnmountOnSleep = true
     @State private var showSavedToast = false
@@ -29,7 +30,7 @@ public struct SettingsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                             
-                            Text("v0.12.0")
+                            Text("v0.13.0")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 8)
@@ -349,6 +350,85 @@ public struct SettingsView: View {
                         }
                         
                         Spacer()
+                    }
+                    .padding()
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+                }
+                
+                // Section: Software Updates
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("Software Updates", systemImage: "arrow.triangle.2.circlepath.circle")
+                            .font(.headline)
+                        Spacer()
+                        
+                        Button(action: {
+                            Task {
+                                await updateChecker.checkForUpdates(manual: true)
+                            }
+                        }) {
+                            if updateChecker.isChecking {
+                                HStack(spacing: 4) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Checking...")
+                                }
+                            } else {
+                                Label("Check for Updates", systemImage: "arrow.clockwise")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(updateChecker.isChecking)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(updateChecker.updateAvailable ? Color.blue.opacity(0.15) : Color.green.opacity(0.15))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: updateChecker.updateAvailable ? "sparkles" : "checkmark.seal.fill")
+                                    .font(.title3)
+                                    .foregroundColor(updateChecker.updateAvailable ? .blue : .green)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let msg = updateChecker.statusMessage {
+                                    Text(msg)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                } else {
+                                    Text("Integra is up to date (v\(UpdateCheckerService.currentVersion)).")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                }
+                                
+                                if let lastDate = updateChecker.lastCheckDate {
+                                    Text("Last checked: \(lastDate.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Automatic background checks run daily.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            if updateChecker.updateAvailable, let newVer = updateChecker.latestVersion {
+                                Text(newVer)
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Color.blue.opacity(0.15))
+                                    .foregroundColor(.blue)
+                                    .clipShape(Capsule())
+                            }
+                        }
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
