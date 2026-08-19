@@ -1,96 +1,122 @@
-# AI Bridge & SSH Port Forwarding Architecture
+# AI Agent Bridge, Model Context Protocol (MCP) & SSH Tunneling Architecture
 
 ## 1. Executive Summary
 
-Modern AI coding agents (such as **Antigravity 2.0**, **Cursor**, **Claude Code**, or autonomous CLI workers) and developers frequently require two foundational capabilities when interacting with remote infrastructure:
-1. **Direct Terminal Command Execution**: Executing build tools (`npm`, `cargo`, `go`), containers (`docker`, `podman`), interactive administrative tasks (`sudo`, `htop`, `nano`), and service daemons (`systemctl`, `launchctl`) directly in the remote environment without local CPU emulation.
-2. **Network Port Forwarding**: Accessing remote LLM inference engines (such as **Ollama** on port `11434` or **vLLM** on `8000`), private databases (**PostgreSQL** on `5432`, **Redis** on `6379`), and private APIs via local loopback (`127.0.0.1:<port>`).
+Modern AI coding assistants (such as **Google Antigravity 2.0**, **Claude Desktop**, **Claude Code CLI**, **Cursor**, **VS Code**, **OpenCode**, **Windsurf**, and autonomous CLI workers) and developers require three foundational capabilities when interacting with remote infrastructure:
+1. **First-Class AI Tool Integration (MCP)**: Connecting the AI agent to structured, discoverable RPC tools (`integra_execute_command`, `integra_list_servers`, `integra_get_tunnels`) without polluting project workspaces.
+2. **Secure Administrative Escalation (Sudo & Touch ID)**: Executing privileged commands (`sudo systemctl`, `sudo nft`, `sudo docker`) securely without exposing plain-text passwords or failing on non-interactive TTY password prompts.
+3. **Network Port Forwarding**: Accessing remote LLM inference engines (such as **Ollama** on port `11434` or **vLLM** on `8000`), private databases (**PostgreSQL** on `5432`, **Redis** on `6379`), and private APIs via local loopback (`127.0.0.1:<port>`).
 
-**Integra v0.6.0** delivers a complete **AI Bridge & Developer Engine**, pairing persistent OpenSSH ControlMaster sockets (`integra-exec`), managed multi-port SSH tunneling, and an autonomous **Non-Destructive AI Instruction Provisioning Engine (`AgentInstructionService.swift`)** for `AGENTS.md` and `CLAUDE.md`.
+**Integra** delivers a comprehensive **AI Tool & Developer Engine**, pairing a native Model Context Protocol (MCP) server target (`integra-mcp`), 1-click auto-configuration across 13 AI clients, persistent OpenSSH ControlMaster sockets, Touch ID biometric sudo authorization, and managed multi-port SSH tunneling.
 
 ---
 
-## 2. Remote Command Execution Bridge (`integra-exec`)
+## 2. Native Model Context Protocol (MCP) Server (`integra-mcp`)
 
-### 2.1. Persistent OpenSSH ControlMaster Socket
-To eliminate the latency of establishing new TCP/TLS handshakes on every command, `RemoteExecService.swift` maintains a multiplexed OpenSSH control master:
+### 2.1. Protocol & Transport Architecture
+Integra implements the open **Model Context Protocol (MCP)** specification via a dedicated lightweight executable target (`Sources/IntegraMCP/main.swift`):
+- **Transport**: JSON-RPC 2.0 over standard input/output (`stdio`).
+- **Binary Placement**: Bundled inside `/Applications/Integra.app/Contents/MacOS/integra-mcp` and linked to `~/.local/bin/integra-mcp`.
+- **Latency**: Sub-5ms response time for tool discovery and execution.
 
-$$\text{Socket Path: } \texttt{/tmp/integra\_ctl\_<sanitized\_server\_name>.sock}$$
+### 2.2. Exposed MCP Tools
+
+```json
+[
+  {
+    "name": "integra_execute_command",
+    "description": "Executes a shell command directly on a remote Linux/SSH server mounted via Integra with sub-5ms latency through persistent OpenSSH ControlMaster sockets.",
+    "parameters": {
+      "server": { "type": "string", "description": "Server name, host, IP, or short ID" },
+      "command": { "type": "string", "description": "The exact shell command to execute" },
+      "working_dir": { "type": "string", "description": "Optional remote working directory" },
+      "sudo": { "type": "boolean", "description": "Set to true if command requires elevated privileges" }
+    }
+  },
+  {
+    "name": "integra_list_servers",
+    "description": "Lists all configured and active remote SSHFS server mounts in Integra, including connection status, mount paths, hostnames, and loopback port tunnels."
+  },
+  {
+    "name": "integra_get_tunnels",
+    "description": "Lists active SSH loopback port forwarding tunnels (e.g. Ollama LLM endpoint, PostgreSQL, Redis) configured in Integra for remote servers."
+  }
+]
+```
+
+---
+
+## 3. 1-Click Multi-Assistant Auto-Configuration (`MCPConfigService.swift`)
+
+Integra automatically discovers, creates, and non-destructively merges the `integra-mcp` server registration across **13 leading AI clients**:
+
+| AI Assistant / IDE | Primary Configuration Path | Schema Format |
+| :--- | :--- | :--- |
+| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` | `mcpServers.integra` |
+| **Claude Code CLI** | `~/.claude.json` & `~/.claude/settings.json` | `mcpServers.integra` |
+| **Cursor** | `~/.cursor/mcp.json` & globalStorage | `mcpServers.integra` |
+| **Google Antigravity 2.0** | `~/.gemini/config/mcp_config.json` & `~/.gemini/antigravity/` | `mcpServers.integra` |
+| **VS Code (Copilot & MCP)**| `~/Library/Application Support/Code/User/mcp.json` & storage | `servers.integra` (`type: stdio`) |
+| **OpenCode CLI** | `~/.config/opencode/opencode.json` | `mcp.servers.integra` & `mcpServers` |
+| **OpenCode Desktop** | `~/Library/Application Support/OpenCode/opencode.json` | `mcp.servers.integra` & `mcpServers` |
+| **Windsurf** | `~/.codeium/windsurf/mcp_config.json` | `mcpServers.integra` |
+| **Cline** | `Code/User/globalStorage/saoudrizwan.claude-dev/...` | `mcpServers.integra` |
+| **Roo Code** | `Code/User/globalStorage/rooveterinaryinc.roo-cline/...` | `mcpServers.integra` |
+| **Continue.dev** | `~/.continue/config.json` | `mcpServers.integra` |
+| **Pi.dev / Pi CLI** | `~/.pi/mcp.json` | `mcpServers.integra` |
+| **Zed Editor** | `~/.config/zed/settings.json` | `context_servers.integra` |
+
+### Non-Destructive Atomic JSON Merging
+Existing custom third-party MCP servers, user preferences, and IDE settings are never overwritten. Integra parses the existing JSON hierarchy, adds or updates the `integra` entry, and writes atomically back to disk.
+
+---
+
+## 4. Native Sudo Privilege Escalation & Touch ID Authorization
 
 ```
 +-----------------------------------------------------------------------------------+
-|                           AI Agent / Developer Terminal                           |
-|              Runs: integra-exec docker ps (or integra-exec sudo ...)              |
+|                        AI Agent Requests Sudo Command                             |
+|          Calls integra_execute_command(server: "xserver", command: "...", sudo: true) |
 +-----------------------------------------+-----------------------------------------+
                                           |
                                           v
 +-----------------------------------------------------------------------------------+
-|               integra-exec CLI Helper (~/.local/bin/integra-exec)                 |
-|  1. Interactive PTY Detection: [ -t 0 ] && [ -t 1 ] -> uses -t (or -T for pipe)   |
-|  2. Case-Insensitive Mount Match: matches ~/Mounts, ~/mounts, /Volumes            |
-|  3. Root & Subfolder Path Mapping: transforms relative path to /$INNER_PATH       |
-|  4. Socket Health Probe: instantly checks control socket liveness                 |
-|  5. Dispatches: ssh $TTY_OPTS -S <sock> placeholder "cd /target/dir && <cmd>"     |
+|                 Integra MCP Server (SudoAuthManager.swift)                        |
+|  1. Checks Sudo Authorization Policy:                                             |
+|     - Ask Once per Session (15-min cache): checks active session timestamp        |
+|     - Always Ask: prompts every call                                              |
+|     - Auto-Approve: reads from Keychain                                           |
+|  2. If prompt required:                                                           |
+|     - Touch ID Evaluation via LocalAuthentication.framework (LAContext)           |
+|     - Universal macOS System Dialog fallback with command details & Cancel/Approve|
+|  3. Just-in-Time (JIT) password entry if not stored in Keychain                  |
 +-----------------------------------------+-----------------------------------------+
                                           |
-                                          v (Sub-5ms Zero-Handshake Stream)
+                                          v (Authorized)
++-----------------------------------------------------------------------------------+
+|                 Secure In-Memory Pipe Execution over SSH Socket                   |
+|     printf '%s\n' '<KEYCHAIN_PASS>' | sudo -S -p '' sh -c '<COMMAND>'             |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                                          v
 +-----------------------------------------------------------------------------------+
 |                        Remote Linux Server / Cloud Node                           |
-|             Executes command, handles PTY / sudo, & returns stdout/stderr         |
+|       Executes command as root, returns output, zero password in chat logs        |
 +-----------------------------------------------------------------------------------+
 ```
 
-### 2.2. Zero-Configuration Case-Insensitive Path Translation
-- **Case-Insensitive Mount Detection**: Matches both `Mounts` and `mounts` and resolves subpaths regardless of casing.
-- **Root Mount Path Resolution**: When connecting to root-mounted filesystems (`/`), subpaths are cleanly formatted with leading absolute slashes (e.g. `/$INNER_PATH` ➔ `/etc/netplan` or `/mnt/HardExtern/forgejo`) rather than defaulting to `$HOME`.
+---
 
-### 2.3. Dual-Mode Terminal & PTY Allocation (`-t` vs `-T`)
-- **Interactive Terminal Sessions**: When invoked from an interactive terminal (with an active TTY on STDIN/STDOUT), `integra-exec` automatically allocates a pseudo-terminal (`-t`), enabling password entry for `sudo`, interactive text editors (`nano`, `vi`), and terminal monitors (`htop`).
-- **Automated AI Agent Tool Pipelines**: When invoked programmatically by AI agents or background scripts through non-interactive pipes, it enforces `-T` to prevent ANSI escape sequence pollution in tool outputs.
+## 5. AI Integration Modes (`AIIntegrationMode.swift`)
+
+Integra provides three user-selectable modes in Settings:
+1. **`MCP-Only` (Default / Recommended)**: Zero project file pollution — `AGENTS.md` and `CLAUDE.md` are not created. Remote workspaces stay 100% clean while modern AI clients use native MCP tools.
+2. **`Hybrid`**: Dual-stack governance prioritizing native `integra_execute_command` MCP tools, with `integra-exec` as a fallback.
+3. **`Legacy CLI Bridge`**: Injects traditional `integra-exec` directives using delimited blocks (`<!-- INTEGRA_AI_BRIDGE_START -->`).
 
 ---
 
-## 3. Autonomous AI Agent Instruction Lifecycle (`AgentInstructionService.swift`)
+## 6. SSH Port Forwarding & AI Tunnels (`SSHTunnelService.swift`)
 
-AI coding agents (Antigravity 2.0, Claude, Cursor, Cline) require unambiguous, authoritative instructions to understand that they are operating in a remote filesystem and must route shell commands through `integra-exec`.
-
-### 3.1. Automatic Mount Provisioning
-When a server profile is mounted and *Developer & AI Agent Tools* is enabled in Settings, `SSHFSService` invokes `AgentInstructionService.shared.injectInstructions(for: profile)`:
-1. Targets `AGENTS.md` and `CLAUDE.md` in the root of the mounted directory.
-2. If the files do not exist, Integra creates them with imperative directives.
-3. If the files already exist with custom user rules, Integra injects its block between delimiters:
-   ```markdown
-   <!-- INTEGRA_AI_BRIDGE_START -->
-   # ⚠️ MANDATORY RULE: REMOTE EXECUTION ENVIRONMENT (INTEGRA AI BRIDGE)
-   ...
-   <!-- INTEGRA_AI_BRIDGE_END -->
-   ```
-   **All user-defined project instructions and coding guidelines remain 100% preserved.**
-
-### 3.2. Clean Non-Destructive Unmount Restoration
-Upon unmounting:
-1. If `AGENTS.md` or `CLAUDE.md` was created solely by Integra, the file is cleanly deleted.
-2. If the file contained pre-existing user rules, only the delimited Integra block is removed, cleanly restoring the original file.
-
----
-
-## 4. SSH Port Forwarding & AI Tunnels (`SSHTunnelService.swift`)
-
-### 4.1. Multiplexed Port Forwarding
-Integra allows configuring multiple port forwarding rules per server profile:
-- **Ollama AI LLM Engine**: Local `11434` ➔ Remote `127.0.0.1:11434`
-- **PostgreSQL Database**: Local `5432` ➔ Remote `127.0.0.1:5432`
-- **Redis Cache**: Local `6379` ➔ Remote `127.0.0.1:6379`
-- **Custom Web / API Services**: Local `8080` ➔ Remote `8080`
-
-### 4.2. Local Loopback Port Collision Detection
-Before initiating a tunnel, `SSHTunnelService` inspects `127.0.0.1:<port>` using POSIX `bind()` system calls. If a local port collision occurs, Integra aborts gracefully and warns the user.
-
----
-
-## 5. UI/UX Architecture
-
-- **Settings Master Toggle (`enableDeveloperAITools`)**: Kept disabled by default for standard users. When enabled, unlocks developer capabilities.
-- **Dedicated Sheet (`AIToolsModalView.swift`)**:
-  - Two dedicated tabs: *SSH Port Tunnels* and *Command Bridge (integra-exec)*.
-  - Quick presets, active endpoint copy buttons (`http://127.0.0.1:<port>`), real-time terminal test console, and 1-click instruction copy to clipboard.
+- **Multiplexed Port Forwarding**: 1-click forwarding for Ollama (`11434`), PostgreSQL (`5432`), Redis (`6379`), and custom APIs.
+- **Local Loopback Port Collision Detection**: Uses POSIX `bind()` system calls before starting tunnels to prevent binding conflicts on `127.0.0.1`.
