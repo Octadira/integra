@@ -5,6 +5,17 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] - 2026-08-19
+
+### Added
+- **Interactive Auto-Configuration Feedback & Animations (`AIToolsModalView.swift` & `SettingsView.swift`)**:
+  - Added smooth animated progress state (`ProgressView`) on the "Auto-Configure All" button during client registration.
+  - Added animated success confirmation banner detailing exactly which AI assistants were configured with 1-click dismissal.
+- **VS Code Official MCP Dual-Structure Support (`MCPConfigService.swift`)**:
+  - Implemented dual registration for VS Code (GitHub Copilot Chat & Extensions) across both `~/Library/Application Support/Code/User/mcp.json` and `globalStorage/mcp.json`, populating both `"servers"` (with `"type": "stdio"`) and `"mcpServers"`.
+
+---
+
 ## [0.10.2] - 2026-08-19
 
 ### Added

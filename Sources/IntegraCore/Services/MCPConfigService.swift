@@ -8,7 +8,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
     case antigravity = "Antigravity 2.0 (Google)"
     case openCodeCLI = "OpenCode CLI"
     case openCodeDesktop = "OpenCode Desktop"
-    case vsCode = "VS Code"
+    case vsCode = "VS Code (Copilot / MCP)"
     case windsurf = "Windsurf"
     case cline = "Cline"
     case rooCode = "Roo Code"
@@ -36,7 +36,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
         }
     }
     
-    public var configPath: String {
+    public var primaryConfigPath: String {
         let home = NSHomeDirectory()
         switch self {
         case .claudeCode:
@@ -52,7 +52,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
         case .openCodeDesktop:
             return "\(home)/Library/Application Support/OpenCode/opencode.json"
         case .vsCode:
-            return "\(home)/Library/Application Support/Code/User/globalStorage/mcp.json"
+            return "\(home)/Library/Application Support/Code/User/mcp.json"
         case .windsurf:
             return "\(home)/.codeium/windsurf/mcp_config.json"
         case .cline:
@@ -68,10 +68,35 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
         }
     }
     
+    public var secondaryConfigPaths: [String] {
+        let home = NSHomeDirectory()
+        switch self {
+        case .antigravity:
+            return ["\(home)/.gemini/antigravity/mcp_config.json"]
+        case .claudeCode:
+            return ["\(home)/.claude/settings.json"]
+        case .vsCode:
+            return ["\(home)/Library/Application Support/Code/User/globalStorage/mcp.json"]
+        case .cursor:
+            return ["\(home)/Library/Application Support/Cursor/User/globalStorage/cursor.mcp/mcp.json"]
+        default:
+            return []
+        }
+    }
+    
     public var isInstalledOrConfigPresent: Bool {
-        let path = configPath
+        let path = primaryConfigPath
         let parentDir = (path as NSString).deletingLastPathComponent
-        return FileManager.default.fileExists(atPath: path) || FileManager.default.fileExists(atPath: parentDir)
+        if FileManager.default.fileExists(atPath: path) || FileManager.default.fileExists(atPath: parentDir) {
+            return true
+        }
+        for sec in secondaryConfigPaths {
+            let secParent = (sec as NSString).deletingLastPathComponent
+            if FileManager.default.fileExists(atPath: sec) || FileManager.default.fileExists(atPath: secParent) {
+                return true
+            }
+        }
+        return false
     }
 }
 
@@ -80,6 +105,9 @@ public class MCPConfigService: ObservableObject {
     public static let shared = MCPConfigService()
     
     @Published public var clientStatus: [SupportedAIClient: Bool] = [:]
+    @Published public var isConfiguring: Bool = false
+    @Published public var lastSuccessMessage: String?
+    @Published public var configuredCount: Int = 0
     
     public static var binaryPath: String {
         let appBundlePath = "/Applications/Integra.app/Contents/MacOS/integra-mcp"
@@ -104,123 +132,134 @@ public class MCPConfigService: ObservableObject {
     }
     
     public func isClientConfigured(_ client: SupportedAIClient) -> Bool {
-        let path = client.configPath
-        guard FileManager.default.fileExists(atPath: path),
-              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return false
-        }
+        let pathsToCheck = [client.primaryConfigPath] + client.secondaryConfigPaths
         
-        if client == .zed {
-            if let servers = json["context_servers"] as? [String: Any], servers["integra"] != nil {
-                return true
+        for path in pathsToCheck {
+            guard FileManager.default.fileExists(atPath: path),
+                  let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                continue
             }
-            return false
-        }
-        
-        if client == .openCodeCLI || client == .openCodeDesktop {
-            if let mcp = json["mcp"] as? [String: Any],
-               let servers = mcp["servers"] as? [String: Any],
-               servers["integra"] != nil {
-                return true
+            
+            if client == .zed {
+                if let servers = json["context_servers"] as? [String: Any], servers["integra"] != nil {
+                    return true
+                }
+            } else if client == .vsCode {
+                if let servers = json["servers"] as? [String: Any], servers["integra"] != nil {
+                    return true
+                }
+                if let servers = json["mcpServers"] as? [String: Any], servers["integra"] != nil {
+                    return true
+                }
+            } else if client == .openCodeCLI || client == .openCodeDesktop {
+                if let mcp = json["mcp"] as? [String: Any],
+                   let servers = mcp["servers"] as? [String: Any],
+                   servers["integra"] != nil {
+                    return true
+                }
+                if let servers = json["mcpServers"] as? [String: Any], servers["integra"] != nil {
+                    return true
+                }
+            } else {
+                if let servers = json["mcpServers"] as? [String: Any], servers["integra"] != nil {
+                    return true
+                }
             }
-            if let servers = json["mcpServers"] as? [String: Any], servers["integra"] != nil {
-                return true
-            }
-            return false
-        }
-        
-        if let servers = json["mcpServers"] as? [String: Any], servers["integra"] != nil {
-            return true
         }
         return false
     }
     
     public func installMCPConfig(for client: SupportedAIClient) -> Result<Void, Error> {
-        let path = client.configPath
-        let parentDir = (path as NSString).deletingLastPathComponent
+        let allPaths = [client.primaryConfigPath] + client.secondaryConfigPaths
+        var lastError: Error?
         
-        do {
-            if !FileManager.default.fileExists(atPath: parentDir) {
-                try FileManager.default.createDirectory(atPath: parentDir, withIntermediateDirectories: true)
-            }
-            
-            var rootDict: [String: Any] = [:]
-            if FileManager.default.fileExists(atPath: path),
-               let existingData = try? Data(contentsOf: URL(fileURLWithPath: path)),
-               let existingJson = try? JSONSerialization.jsonObject(with: existingData) as? [String: Any] {
-                rootDict = existingJson
-            }
-            
-            let integraEntry: [String: Any] = [
-                "command": MCPConfigService.binaryPath,
-                "args": [] as [String]
-            ]
-            
-            if client == .zed {
-                var contextServers = rootDict["context_servers"] as? [String: Any] ?? [:]
-                contextServers["integra"] = integraEntry
-                rootDict["context_servers"] = contextServers
-            } else if client == .openCodeCLI || client == .openCodeDesktop {
-                var mcpDict = rootDict["mcp"] as? [String: Any] ?? ["enabled": true]
-                var servers = mcpDict["servers"] as? [String: Any] ?? [:]
-                servers["integra"] = integraEntry
-                mcpDict["servers"] = servers
-                mcpDict["enabled"] = true
-                rootDict["mcp"] = mcpDict
-                
-                // Also add root mcpServers for compatibility
-                var mcpServers = rootDict["mcpServers"] as? [String: Any] ?? [:]
-                mcpServers["integra"] = integraEntry
-                rootDict["mcpServers"] = mcpServers
-            } else {
-                var mcpServers = rootDict["mcpServers"] as? [String: Any] ?? [:]
-                mcpServers["integra"] = integraEntry
-                rootDict["mcpServers"] = mcpServers
-            }
-            
-            let updatedData = try JSONSerialization.data(withJSONObject: rootDict, options: [.prettyPrinted, .sortedKeys])
-            try updatedData.write(to: URL(fileURLWithPath: path), options: .atomic)
-            
-            // Sync secondary backup paths for specific tools
-            if client == .antigravity {
-                let secondaryPath = "\(NSHomeDirectory())/.gemini/antigravity/mcp_config.json"
-                try? updatedData.write(to: URL(fileURLWithPath: secondaryPath), options: .atomic)
-            } else if client == .claudeCode {
-                let secondaryPath = "\(NSHomeDirectory())/.claude/settings.json"
-                if FileManager.default.fileExists(atPath: secondaryPath),
-                   let secData = try? Data(contentsOf: URL(fileURLWithPath: secondaryPath)),
-                   var secJson = (try? JSONSerialization.jsonObject(with: secData)) as? [String: Any] {
-                    var secServers = secJson["mcpServers"] as? [String: Any] ?? [:]
-                    secServers["integra"] = integraEntry
-                    secJson["mcpServers"] = secServers
-                    if let secEncoded = try? JSONSerialization.data(withJSONObject: secJson, options: [.prettyPrinted, .sortedKeys]) {
-                        try? secEncoded.write(to: URL(fileURLWithPath: secondaryPath), options: .atomic)
-                    }
+        for path in allPaths {
+            let parentDir = (path as NSString).deletingLastPathComponent
+            do {
+                if !FileManager.default.fileExists(atPath: parentDir) {
+                    try FileManager.default.createDirectory(atPath: parentDir, withIntermediateDirectories: true)
                 }
+                
+                var rootDict: [String: Any] = [:]
+                if FileManager.default.fileExists(atPath: path),
+                   let existingData = try? Data(contentsOf: URL(fileURLWithPath: path)),
+                   let existingJson = try? JSONSerialization.jsonObject(with: existingData) as? [String: Any] {
+                    rootDict = existingJson
+                }
+                
+                let standardEntry: [String: Any] = [
+                    "type": "stdio",
+                    "command": MCPConfigService.binaryPath,
+                    "args": [] as [String]
+                ]
+                
+                if client == .zed {
+                    var contextServers = rootDict["context_servers"] as? [String: Any] ?? [:]
+                    contextServers["integra"] = standardEntry
+                    rootDict["context_servers"] = contextServers
+                } else if client == .vsCode {
+                    var servers = rootDict["servers"] as? [String: Any] ?? [:]
+                    servers["integra"] = standardEntry
+                    rootDict["servers"] = servers
+                    
+                    var mcpServers = rootDict["mcpServers"] as? [String: Any] ?? [:]
+                    mcpServers["integra"] = standardEntry
+                    rootDict["mcpServers"] = mcpServers
+                } else if client == .openCodeCLI || client == .openCodeDesktop {
+                    var mcpDict = rootDict["mcp"] as? [String: Any] ?? ["enabled": true]
+                    var servers = mcpDict["servers"] as? [String: Any] ?? [:]
+                    servers["integra"] = standardEntry
+                    mcpDict["servers"] = servers
+                    mcpDict["enabled"] = true
+                    rootDict["mcp"] = mcpDict
+                    
+                    var mcpServers = rootDict["mcpServers"] as? [String: Any] ?? [:]
+                    mcpServers["integra"] = standardEntry
+                    rootDict["mcpServers"] = mcpServers
+                } else {
+                    var mcpServers = rootDict["mcpServers"] as? [String: Any] ?? [:]
+                    mcpServers["integra"] = standardEntry
+                    rootDict["mcpServers"] = mcpServers
+                }
+                
+                let updatedData = try JSONSerialization.data(withJSONObject: rootDict, options: [.prettyPrinted, .sortedKeys])
+                try updatedData.write(to: URL(fileURLWithPath: path), options: .atomic)
+            } catch {
+                lastError = error
             }
-            
-            clientStatus[client] = true
-            return .success(())
-        } catch {
-            return .failure(error)
         }
+        
+        clientStatus[client] = true
+        if let err = lastError, !isClientConfigured(client) {
+            return .failure(err)
+        }
+        return .success(())
     }
     
     public func removeMCPConfig(for client: SupportedAIClient) -> Result<Void, Error> {
-        let path = client.configPath
-        guard FileManager.default.fileExists(atPath: path),
-              let existingData = try? Data(contentsOf: URL(fileURLWithPath: path)),
-              var rootDict = (try? JSONSerialization.jsonObject(with: existingData)) as? [String: Any] else {
-            clientStatus[client] = false
-            return .success(())
-        }
+        let allPaths = [client.primaryConfigPath] + client.secondaryConfigPaths
         
-        do {
+        for path in allPaths {
+            guard FileManager.default.fileExists(atPath: path),
+                  let existingData = try? Data(contentsOf: URL(fileURLWithPath: path)),
+                  var rootDict = (try? JSONSerialization.jsonObject(with: existingData)) as? [String: Any] else {
+                continue
+            }
+            
             if client == .zed {
                 if var contextServers = rootDict["context_servers"] as? [String: Any] {
                     contextServers.removeValue(forKey: "integra")
                     rootDict["context_servers"] = contextServers
+                }
+            } else if client == .vsCode {
+                if var servers = rootDict["servers"] as? [String: Any] {
+                    servers.removeValue(forKey: "integra")
+                    rootDict["servers"] = servers
+                }
+                if var mcpServers = rootDict["mcpServers"] as? [String: Any] {
+                    mcpServers.removeValue(forKey: "integra")
+                    rootDict["mcpServers"] = mcpServers
                 }
             } else if client == .openCodeCLI || client == .openCodeDesktop {
                 if var mcpDict = rootDict["mcp"] as? [String: Any],
@@ -240,20 +279,40 @@ public class MCPConfigService: ObservableObject {
                 }
             }
             
-            let updatedData = try JSONSerialization.data(withJSONObject: rootDict, options: [.prettyPrinted, .sortedKeys])
-            try updatedData.write(to: URL(fileURLWithPath: path), options: .atomic)
-            
-            clientStatus[client] = false
-            return .success(())
-        } catch {
-            return .failure(error)
+            let updatedData = try? JSONSerialization.data(withJSONObject: rootDict, options: [.prettyPrinted, .sortedKeys])
+            try? updatedData?.write(to: URL(fileURLWithPath: path), options: .atomic)
         }
+        
+        clientStatus[client] = false
+        return .success(())
     }
     
     public func installAllDetectedClients() {
-        for client in SupportedAIClient.allCases {
-            if client.isInstalledOrConfigPresent {
-                _ = installMCPConfig(for: client)
+        isConfiguring = true
+        lastSuccessMessage = nil
+        var configuredNames: [String] = []
+        
+        Task { @MainActor in
+            // Small simulated delay for smooth UI feedback
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            
+            for client in SupportedAIClient.allCases {
+                if client.isInstalledOrConfigPresent {
+                    let res = installMCPConfig(for: client)
+                    if case .success = res {
+                        configuredNames.append(client.rawValue)
+                    }
+                }
+            }
+            
+            self.refreshAllStatus()
+            self.configuredCount = configuredNames.count
+            self.isConfiguring = false
+            
+            if !configuredNames.isEmpty {
+                self.lastSuccessMessage = "Successfully configured Integra MCP across \(configuredNames.count) AI assistants: \(configuredNames.joined(separator: ", "))!"
+            } else {
+                self.lastSuccessMessage = "All supported AI assistant configurations are already up to date."
             }
         }
     }

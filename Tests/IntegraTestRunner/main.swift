@@ -343,8 +343,8 @@ func main() async {
     
     TestContext.runTest(suite: "MCPConfigServiceTests", name: "testSupportedAIClientsConfigPaths") {
         for client in SupportedAIClient.allCases {
-            TestContext.assertFalse(client.configPath.isEmpty, "Config path for \(client.rawValue) must not be empty")
-            TestContext.assertTrue(client.configPath.contains(NSHomeDirectory()), "Config path must be within user home directory")
+            TestContext.assertFalse(client.primaryConfigPath.isEmpty, "Config path for \(client.rawValue) must not be empty")
+            TestContext.assertTrue(client.primaryConfigPath.contains(NSHomeDirectory()), "Config path must be within user home directory")
         }
     }
     

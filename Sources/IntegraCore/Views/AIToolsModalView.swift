@@ -140,12 +140,49 @@ public struct AIToolsModalView: View {
                         .font(.headline)
                     Spacer()
                     Button(action: {
-                        mcpConfig.installAllDetectedClients()
+                        withAnimation(.spring()) {
+                            mcpConfig.installAllDetectedClients()
+                        }
                     }) {
-                        Label("Auto-Configure All", systemImage: "sparkles")
+                        if mcpConfig.isConfiguring {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Configuring...")
+                            }
+                        } else {
+                            Label("Auto-Configure All", systemImage: "sparkles")
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .disabled(mcpConfig.isConfiguring)
+                }
+                
+                if let success = mcpConfig.lastSuccessMessage {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundColor(.green)
+                            .font(.body)
+                        Text(success)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Button(action: {
+                            withAnimation {
+                                mcpConfig.lastSuccessMessage = nil
+                            }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(10)
+                    .background(Color.green.opacity(0.12))
+                    .cornerRadius(8)
+                    .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
                 }
                 
                 Text("Select your AI coding assistants to automatically install the Integra MCP tool provider:")
@@ -238,7 +275,7 @@ public struct AIToolsModalView: View {
                 Text(client.rawValue)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text(client.configPath)
+                Text(client.primaryConfigPath)
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(.secondary)
                     .lineLimit(1)

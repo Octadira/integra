@@ -5,6 +5,7 @@ public struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var depService: DependencyService
     @EnvironmentObject var recoveryService: NetworkRecoveryService
+    @ObservedObject var mcpConfig = MCPConfigService.shared
     
     @State private var autoUnmountOnSleep = true
     @State private var showSavedToast = false
@@ -28,7 +29,7 @@ public struct SettingsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                             
-                            Text("v0.10.2")
+                            Text("v0.10.3")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 8)
@@ -171,12 +172,49 @@ public struct SettingsView: View {
                                 }
                                 Spacer()
                                 Button(action: {
-                                    MCPConfigService.shared.installAllDetectedClients()
+                                    withAnimation(.spring()) {
+                                        mcpConfig.installAllDetectedClients()
+                                    }
                                 }) {
-                                    Label("Auto-Configure All", systemImage: "bolt.fill")
+                                    if mcpConfig.isConfiguring {
+                                        HStack(spacing: 4) {
+                                            ProgressView()
+                                                .controlSize(.small)
+                                            Text("Configuring...")
+                                        }
+                                    } else {
+                                        Label("Auto-Configure All", systemImage: "bolt.fill")
+                                    }
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.small)
+                                .disabled(mcpConfig.isConfiguring)
+                            }
+                            
+                            if let success = mcpConfig.lastSuccessMessage {
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .foregroundColor(.green)
+                                        .font(.body)
+                                    Text(success)
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Button(action: {
+                                        withAnimation {
+                                            mcpConfig.lastSuccessMessage = nil
+                                        }
+                                    }) {
+                                        Image(systemName: "xmark")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(10)
+                                .background(Color.green.opacity(0.12))
+                                .cornerRadius(8)
+                                .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
                             }
                         }
                     }
