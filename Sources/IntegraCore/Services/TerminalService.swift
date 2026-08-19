@@ -111,6 +111,41 @@ public class TerminalService {
             } else {
                 task.arguments = ["-a", "Codex", expanded]
             }
+        case .windsurf:
+            let candidateCLIs = [
+                "/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf",
+                "/usr/local/bin/windsurf",
+                "/opt/homebrew/bin/windsurf",
+                "\(NSHomeDirectory())/.local/bin/windsurf"
+            ]
+            for cliPath in candidateCLIs {
+                if FileManager.default.isExecutableFile(atPath: cliPath) {
+                    let cliTask = Process()
+                    cliTask.executableURL = URL(fileURLWithPath: cliPath)
+                    cliTask.arguments = [expanded]
+                    try? cliTask.run()
+                    return
+                }
+            }
+            task.arguments = ["-a", "Windsurf", expanded]
+        case .kiro:
+            let candidateCLIs = [
+                "/Applications/Kiro.app/Contents/Resources/app/bin/kiro",
+                "\(NSHomeDirectory())/Applications/Kiro.app/Contents/Resources/app/bin/kiro",
+                "/usr/local/bin/kiro",
+                "/opt/homebrew/bin/kiro",
+                "\(NSHomeDirectory())/.local/bin/kiro"
+            ]
+            for cliPath in candidateCLIs {
+                if FileManager.default.isExecutableFile(atPath: cliPath) {
+                    let cliTask = Process()
+                    cliTask.executableURL = URL(fileURLWithPath: cliPath)
+                    cliTask.arguments = [expanded]
+                    try? cliTask.run()
+                    return
+                }
+            }
+            task.arguments = ["-a", "Kiro", expanded]
         }
         
         try? task.run()

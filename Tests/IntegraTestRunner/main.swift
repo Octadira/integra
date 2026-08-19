@@ -458,6 +458,20 @@ func main() async {
         TestContext.assertTrue(updatedContent.contains("js_repl = false"), "Codex TOML must preserve existing settings")
     }
     
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testKiroMCPConfigurationPathAndFormat") {
+        let kiroClient = SupportedAIClient.kiro
+        TestContext.assertTrue(kiroClient.primaryConfigPath.contains(".kiro/settings/mcp.json"), "Kiro primary config path must point to .kiro/settings/mcp.json")
+        TestContext.assertEqual(kiroClient.icon, "cpu", "Kiro icon should be cpu")
+    }
+    
+    TestContext.runTest(suite: "CodeEditorAppTests", name: "testCodeEditorAppEnumIncludesWindsurfAndKiro") {
+        let allEditors = CodeEditorApp.allCases
+        TestContext.assertTrue(allEditors.contains(.windsurf), "CodeEditorApp must contain .windsurf")
+        TestContext.assertTrue(allEditors.contains(.kiro), "CodeEditorApp must contain .kiro")
+        TestContext.assertEqual(CodeEditorApp.windsurf.rawValue, "Windsurf", "Windsurf raw value must match")
+        TestContext.assertEqual(CodeEditorApp.kiro.rawValue, "Kiro (kiro.dev)", "Kiro raw value must match")
+    }
+    
     print("▶︎ Running Suite: AI Integration Modes & Zero-Pollution Lifecycle")
     
     TestContext.runTest(suite: "AIIntegrationModeTests", name: "testHybridModeGeneratesHierarchicalDirectives") {

@@ -16,6 +16,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
     case piDev = "Pi.dev"
     case zed = "Zed"
     case codex = "Codex (OpenAI)"
+    case kiro = "Kiro (kiro.dev)"
     
     public var id: String { self.rawValue }
     
@@ -35,6 +36,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
         case .piDev: return "number.circle.fill"
         case .zed: return "z.circle.fill"
         case .codex: return "sparkles"
+        case .kiro: return "cpu"
         }
     }
     
@@ -69,6 +71,8 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
             return "\(home)/.config/zed/settings.json"
         case .codex:
             return "\(home)/.codex/config.toml"
+        case .kiro:
+            return "\(home)/.kiro/settings/mcp.json"
         }
     }
     
@@ -83,6 +87,8 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
             return ["\(home)/Library/Application Support/Code/User/globalStorage/mcp.json"]
         case .cursor:
             return ["\(home)/Library/Application Support/Cursor/User/globalStorage/cursor.mcp/mcp.json"]
+        case .kiro:
+            return ["\(home)/.kiro/mcp.json"]
         default:
             return []
         }

@@ -30,7 +30,7 @@ public struct SettingsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                             
-                            Text("v0.13.0")
+                            Text("v0.14.0")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 8)
@@ -455,6 +455,8 @@ public struct SettingsView: View {
         case .cursor: return "AI Code Editor"
         case .antigravity: return "Google AI Agent IDE"
         case .codex: return "OpenAI / ChatGPT Code Agent"
+        case .windsurf: return "Codeium AI Code Editor"
+        case .kiro: return "AWS Spec-Driven AI IDE"
         }
     }
     

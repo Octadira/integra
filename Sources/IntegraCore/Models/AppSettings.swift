@@ -24,6 +24,8 @@ public enum CodeEditorApp: String, CaseIterable, Identifiable, Codable {
     case cursor = "Cursor"
     case antigravity = "Antigravity 2.0 IDE"
     case codex = "Codex (OpenAI)"
+    case windsurf = "Windsurf"
+    case kiro = "Kiro (kiro.dev)"
     
     public var id: String { self.rawValue }
     
@@ -33,6 +35,8 @@ public enum CodeEditorApp: String, CaseIterable, Identifiable, Codable {
         case .cursor: return "cursorarrow.rays"
         case .antigravity: return "atom"
         case .codex: return "sparkles"
+        case .windsurf: return "wind"
+        case .kiro: return "cpu"
         }
     }
 }

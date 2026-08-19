@@ -5,6 +5,21 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-08-19
+
+### Added
+- **Windsurf IDE Workspace Launcher (`TerminalService.swift` & `AppSettings.swift`)**:
+  - Added native support for Codeium's **Windsurf** IDE in default Code Editor preferences, quick launcher buttons, and contextual menus.
+  - Automatically searches candidate CLI binaries (`/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf`, `/usr/local/bin/windsurf`, `/opt/homebrew/bin/windsurf`) to open remote mounted filesystems.
+- **Kiro (kiro.dev) Agentic IDE Integration (`TerminalService.swift`, `AppSettings.swift`, `MCPConfigService.swift`)**:
+  - Added dedicated launcher support for AWS **Kiro** spec-driven AI IDE (`dev.kiro.desktop`).
+  - Added 1-Click MCP Auto-Configuration for Kiro (`~/.kiro/settings/mcp.json` and `~/.kiro/mcp.json`).
+  - Expanded supported AI clients to **15 assistants** in 1-Click Auto-Configuration and 6 Code Editors in default preferences.
+- **Automated Test Suite Expansion (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testKiroMCPConfigurationPathAndFormat` and `testCodeEditorAppEnumIncludesWindsurfAndKiro` (35/35 tests passing).
+
+---
+
 ## [0.13.0] - 2026-08-19
 
 ### Added
