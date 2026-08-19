@@ -5,6 +5,14 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2026-08-19
+
+### Fixed
+- **Google Antigravity Global Configuration Sync (`MCPConfigService.swift`)**:
+  - Updated Antigravity MCP auto-configuration to write directly to the official global configuration path (`~/.gemini/config/mcp_config.json`) alongside `~/.gemini/antigravity/mcp_config.json`, ensuring immediate recognition across all Antigravity CLI (`agy`) and IDE sessions.
+
+---
+
 ## [0.10.0] - 2026-08-19
 
 ### Added

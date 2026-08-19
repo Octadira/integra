@@ -38,7 +38,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
         case .cursor:
             return "\(home)/.cursor/mcp.json"
         case .antigravity:
-            return "\(home)/.gemini/antigravity/mcp_config.json"
+            return "\(home)/.gemini/config/mcp_config.json"
         case .vsCode:
             return "\(home)/Library/Application Support/Code/User/globalStorage/mcp.json"
         case .windsurf:
@@ -148,6 +148,11 @@ public class MCPConfigService: ObservableObject {
             
             let updatedData = try JSONSerialization.data(withJSONObject: rootDict, options: [.prettyPrinted, .sortedKeys])
             try updatedData.write(to: URL(fileURLWithPath: path), options: .atomic)
+            
+            if client == .antigravity {
+                let secondaryPath = "\(NSHomeDirectory())/.gemini/antigravity/mcp_config.json"
+                try? updatedData.write(to: URL(fileURLWithPath: secondaryPath), options: .atomic)
+            }
             
             clientStatus[client] = true
             return .success(())
