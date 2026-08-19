@@ -82,30 +82,36 @@ public struct SidebarView: View {
                     Text(depService.allInstalled ? (activeCount > 0 ? "\(activeCount) Server\(activeCount == 1 ? "" : "s") Connected" : "FUSE-T Ready") : "Dependencies Missing")
                         .font(.caption)
                         .fontWeight(.medium)
+                        .lineLimit(1)
                     
-                    Text("Integra v0.14.0")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 6) {
+                        Text("Integra v0.14.1")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        
+                        if updateChecker.updateAvailable, let newVer = updateChecker.latestVersion {
+                            HStack(spacing: 3) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 8))
+                                Text(newVer)
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.15))
+                            .foregroundColor(.blue)
+                            .clipShape(Capsule())
+                            .fixedSize(horizontal: true, vertical: true)
+                        }
+                    }
                 }
                 
                 Spacer()
-                
-                if updateChecker.updateAvailable, let newVer = updateChecker.latestVersion {
-                    HStack(spacing: 3) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 9))
-                        Text(newVer)
-                            .font(.system(size: 10, weight: .bold))
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.15))
-                    .foregroundColor(.blue)
-                    .clipShape(Capsule())
-                }
             }
             .padding(12)
             .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
         }
+        .frame(minWidth: 210)
     }
 }

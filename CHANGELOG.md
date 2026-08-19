@@ -5,6 +5,16 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1] - 2026-08-19
+
+### Fixed
+- **Sidebar Width & Navigation Truncation Fix (`IntegraApp.swift` & `SidebarView.swift`)**:
+  - Imposed strict `.navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 300)` and `.frame(minWidth: 210)` on the Sidebar to permanently prevent macOS from collapsing sidebar navigation items into truncated labels (*"Connec... 1"*, *"Active... 1"*, *"Dependen..."*).
+- **Sidebar Footer & Update Badge Layout Optimization (`SidebarView.swift`)**:
+  - Refactored footer layout to place the update notification badge inline next to the version label (`Integra vX.Y.Z [✨ vX.Y.Z]`) with `.fixedSize(horizontal: true, vertical: true)`, preventing vertical letter squishing or horizontal collisions with connection counts.
+
+---
+
 ## [0.14.0] - 2026-08-19
 
 ### Added

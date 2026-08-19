@@ -91,6 +91,7 @@ struct IntegraApp: App {
         WindowGroup {
             NavigationSplitView {
                 SidebarView(selectedTab: $selectedTab)
+                    .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 300)
             } detail: {
                 switch selectedTab {
                 case .profiles:
