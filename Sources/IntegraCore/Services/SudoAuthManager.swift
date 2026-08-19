@@ -65,29 +65,29 @@ public final class SudoAuthManager: @unchecked Sendable {
                 return SudoAuthResult(isGranted: true, sudoPassword: pass)
             }
             // If no password in Keychain, prompt JIT
-            return await promptForSudo(profile: profile, command: command, hasSavedPassword: false)
+            return await promptForSudo(profile: profile, command: command, savedPassword: nil)
             
         case .sessionCache:
             if isSessionValid(for: profile.id), let pass = existingPassword, !pass.isEmpty {
                 return SudoAuthResult(isGranted: true, sudoPassword: pass)
             }
-            return await promptForSudo(profile: profile, command: command, hasSavedPassword: existingPassword != nil && !existingPassword!.isEmpty)
+            return await promptForSudo(profile: profile, command: command, savedPassword: existingPassword)
             
         case .touchIDOrPrompt:
-            return await promptForSudo(profile: profile, command: command, hasSavedPassword: existingPassword != nil && !existingPassword!.isEmpty)
+            return await promptForSudo(profile: profile, command: command, savedPassword: existingPassword)
         }
     }
     
-    private func promptForSudo(profile: SSHProfile, command: String, hasSavedPassword: Bool) async -> SudoAuthResult {
+    private func promptForSudo(profile: SSHProfile, command: String, savedPassword: String?) async -> SudoAuthResult {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 // If password exists, try Touch ID / Biometrics first if available
-                if hasSavedPassword {
+                if let pass = savedPassword, !pass.isEmpty {
                     let laContext = LAContext()
                     var error: NSError?
                     
                     if laContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-                        let reason = "Authorize AI Agent sudo command '\(command)' on \(profile.name)"
+                        let reason = "Authorize AI Agent sudo execution on \(profile.name)"
                         let semaphore = DispatchSemaphore(value: 0)
                         var biometricSuccess = false
                         
@@ -99,7 +99,6 @@ public final class SudoAuthManager: @unchecked Sendable {
                         
                         if biometricSuccess {
                             self.recordAuthorization(for: profile.id)
-                            let pass = KeychainService.shared.getEffectiveSudoPassword(for: profile)
                             continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: pass))
                             return
                         }
@@ -111,7 +110,7 @@ public final class SudoAuthManager: @unchecked Sendable {
                 let escapedCommand = command.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\\", with: "\\\\")
                 let escapedServer = serverDesc.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\\", with: "\\\\")
                 
-                if hasSavedPassword {
+                if let pass = savedPassword, !pass.isEmpty {
                     let script = """
                     tell application "System Events"
                         activate
@@ -134,7 +133,6 @@ public final class SudoAuthManager: @unchecked Sendable {
                         
                         if process.terminationStatus == 0 && output == "Authorize" {
                             self.recordAuthorization(for: profile.id)
-                            let pass = KeychainService.shared.getEffectiveSudoPassword(for: profile)
                             continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: pass))
                         } else {
                             continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Execution cancelled by user."))

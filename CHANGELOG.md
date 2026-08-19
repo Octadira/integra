@@ -5,6 +5,17 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.3] - 2026-08-20
+
+### Fixed
+- **Single-Pass Keychain Sudo Read Optimization (`SudoAuthManager.swift`)**:
+  - Eliminated redundant multiple reads of the sudo credentials from macOS Keychain during a single command execution, passing the in-memory credential directly to the authorization handler.
+  - Resolves duplicate macOS system Keychain permission prompts when executing administrative remote commands.
+- **Biometric Authorization Flow Alignment (`SudoAuthManager.swift`)**:
+  - Refactored `LAContext` biometric evaluation handler to pass pre-resolved credentials upon successful Touch ID authentication without re-querying the Keychain.
+
+---
+
 ## [0.14.2] - 2026-08-20
 
 ### Fixed
