@@ -8,6 +8,7 @@ let package = Package(
     ],
     products: [
         .executable(name: "Integra", targets: ["Integra"]),
+        .executable(name: "integra-mcp", targets: ["integra-mcp"]),
         .executable(name: "IntegraTestRunner", targets: ["IntegraTestRunner"]),
         .library(name: "IntegraCore", targets: ["IntegraCore"])
     ],
@@ -22,6 +23,11 @@ let package = Package(
             name: "Integra",
             dependencies: ["IntegraCore"],
             path: "Sources/IntegraApp"
+        ),
+        .executableTarget(
+            name: "integra-mcp",
+            dependencies: ["IntegraCore"],
+            path: "Sources/IntegraMCP"
         ),
         .executableTarget(
             name: "IntegraTestRunner",

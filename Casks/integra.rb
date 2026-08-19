@@ -1,6 +1,6 @@
 cask "integra" do
-  version "0.9.0"
-  sha256 "5f16b8096615deb43b2c171fa231753f8da4425f1f63e158a233afbc7ce032cf"
+  version "0.10.0"
+  sha256 "0e19f21121282c9ce5bc802a5225de6f1f2ed0618ba30e7063a9a8cb15565601"
 
   url "https://github.com/Octadira/integra/releases/download/v#{version}/Integra-v#{version}.dmg"
   name "Integra"

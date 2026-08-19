@@ -28,7 +28,7 @@ public struct SettingsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                             
-                            Text("v0.9.0")
+                            Text("v0.10.0")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 8)
@@ -120,15 +120,63 @@ public struct SettingsView: View {
                         Spacer()
                     }
                     
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 12) {
                         Toggle(isOn: $settings.enableDeveloperAITools) {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("Enable AI Bridge & SSH Port Tunnels")
+                                Text("Enable AI Bridge & Model Context Protocol (MCP)")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
-                                Text("Unlocks SSH Port Forwarding (for Ollama, DBs, and APIs) and the integra-exec remote CLI command bridge for AI agents (Antigravity 2.0, Cursor, CLI).")
+                                Text("Exposes native MCP tools for Claude Desktop, Cursor, Antigravity 2.0, VS Code, and Pi.dev, plus SSH Port Forwarding for local LLMs and databases.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        if settings.enableDeveloperAITools {
+                            Divider()
+                                .padding(.vertical, 2)
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("AI Integration Mode")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                
+                                Picker("", selection: $settings.aiIntegrationMode) {
+                                    ForEach(AIIntegrationMode.allCases) { mode in
+                                        HStack {
+                                            Image(systemName: mode.icon)
+                                            Text(mode.rawValue)
+                                        }
+                                        .tag(mode)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                
+                                Text(settings.aiIntegrationMode.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Divider()
+                                .padding(.vertical, 2)
+                            
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("1-Click MCP Client Auto-Configuration")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Text("Registers the 'integra-mcp' tool provider with all installed AI assistants on your Mac.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Button(action: {
+                                    MCPConfigService.shared.installAllDetectedClients()
+                                }) {
+                                    Label("Auto-Configure All", systemImage: "bolt.fill")
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
                             }
                         }
                     }

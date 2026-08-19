@@ -37,6 +37,33 @@ public enum CodeEditorApp: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+public enum AIIntegrationMode: String, CaseIterable, Identifiable, Codable {
+    case mcpOnly = "Model Context Protocol (MCP - Modern)"
+    case cliAndMarkdown = "Legacy CLI Bridge (AGENTS.md)"
+    case hybrid = "Hybrid (MCP + CLI Fallback)"
+    
+    public var id: String { self.rawValue }
+    
+    public var description: String {
+        switch self {
+        case .mcpOnly:
+            return "Exposes native tools directly to Claude, Cursor, Antigravity, VS Code, and Pi.dev. Zero project file modifications."
+        case .cliAndMarkdown:
+            return "Injects AGENTS.md and CLAUDE.md files with 'integra-exec' directives into mounted project directories."
+        case .hybrid:
+            return "Provides native MCP tools while maintaining dual-stack fallback instructions in project files."
+        }
+    }
+    
+    public var icon: String {
+        switch self {
+        case .mcpOnly: return "sparkles"
+        case .cliAndMarkdown: return "doc.plaintext"
+        case .hybrid: return "arrow.triangle.merge"
+        }
+    }
+}
+
 public struct SettingsData: Codable {
     public var launchAtLogin: Bool
     public var preferredTerminal: TerminalApp
@@ -44,6 +71,7 @@ public struct SettingsData: Codable {
     public var autoReconnectOnRecovery: Bool
     public var enableDeveloperAITools: Bool
     public var defaultMountsFolder: String
+    public var aiIntegrationMode: AIIntegrationMode
     
     public init(
         launchAtLogin: Bool = true,
@@ -51,7 +79,8 @@ public struct SettingsData: Codable {
         preferredEditor: CodeEditorApp = .vsCode,
         autoReconnectOnRecovery: Bool = true,
         enableDeveloperAITools: Bool = false,
-        defaultMountsFolder: String = "\(NSHomeDirectory())/Mounts"
+        defaultMountsFolder: String = "\(NSHomeDirectory())/Mounts",
+        aiIntegrationMode: AIIntegrationMode = .mcpOnly
     ) {
         self.launchAtLogin = launchAtLogin
         self.preferredTerminal = preferredTerminal
@@ -59,6 +88,7 @@ public struct SettingsData: Codable {
         self.autoReconnectOnRecovery = autoReconnectOnRecovery
         self.enableDeveloperAITools = enableDeveloperAITools
         self.defaultMountsFolder = defaultMountsFolder
+        self.aiIntegrationMode = aiIntegrationMode
     }
 }
 
@@ -107,6 +137,12 @@ public class AppSettings: ObservableObject {
         }
     }
     
+    @Published public var aiIntegrationMode: AIIntegrationMode {
+        didSet {
+            saveSettings()
+        }
+    }
+    
     @Published public var defaultMountsFolder: String {
         didSet {
             AppSettings.lock.lock()
@@ -139,6 +175,7 @@ public class AppSettings: ObservableObject {
             self.preferredEditor = decoded.preferredEditor
             self.autoReconnectOnRecovery = decoded.autoReconnectOnRecovery
             self.enableDeveloperAITools = decoded.enableDeveloperAITools
+            self.aiIntegrationMode = decoded.aiIntegrationMode
             self.defaultMountsFolder = decoded.defaultMountsFolder
             
             AppSettings.lock.lock()
@@ -169,38 +206,43 @@ public class AppSettings: ObservableObject {
         
         self.enableDeveloperAITools = UserDefaults.standard.bool(forKey: "Integra_enableDeveloperAITools")
         
-        let savedMount = UserDefaults.standard.string(forKey: "Integra_defaultMountsFolder") ?? defaultPath
-        self.defaultMountsFolder = savedMount
+        let savedMode = UserDefaults.standard.string(forKey: "Integra_aiIntegrationMode") ?? AIIntegrationMode.mcpOnly.rawValue
+        self.aiIntegrationMode = AIIntegrationMode(rawValue: savedMode) ?? .mcpOnly
+        
+        let savedFolder = UserDefaults.standard.string(forKey: "Integra_defaultMountsFolder") ?? defaultPath
+        self.defaultMountsFolder = savedFolder
         
         AppSettings.lock.lock()
-        AppSettings._cachedMountsFolder = savedMount
+        AppSettings._cachedMountsFolder = savedFolder
         AppSettings.lock.unlock()
         
-        saveSettings() // Migrate to JSON file immediately
+        // Initial persistent save
+        saveSettings()
     }
     
     private func saveSettings() {
+        // Sync to UserDefaults for legacy compatibility
+        UserDefaults.standard.set(launchAtLogin, forKey: "Integra_launchAtLogin")
+        UserDefaults.standard.set(preferredTerminal.rawValue, forKey: "Integra_preferredTerminal")
+        UserDefaults.standard.set(preferredEditor.rawValue, forKey: "Integra_preferredEditor")
+        UserDefaults.standard.set(autoReconnectOnRecovery, forKey: "Integra_autoReconnectOnRecovery")
+        UserDefaults.standard.set(enableDeveloperAITools, forKey: "Integra_enableDeveloperAITools")
+        UserDefaults.standard.set(aiIntegrationMode.rawValue, forKey: "Integra_aiIntegrationMode")
+        UserDefaults.standard.set(defaultMountsFolder, forKey: "Integra_defaultMountsFolder")
+        
+        // Save to persistent Application Support JSON
         let data = SettingsData(
             launchAtLogin: launchAtLogin,
             preferredTerminal: preferredTerminal,
             preferredEditor: preferredEditor,
             autoReconnectOnRecovery: autoReconnectOnRecovery,
             enableDeveloperAITools: enableDeveloperAITools,
-            defaultMountsFolder: defaultMountsFolder
+            defaultMountsFolder: defaultMountsFolder,
+            aiIntegrationMode: aiIntegrationMode
         )
         
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        if let encoded = try? encoder.encode(data) {
+        if let encoded = try? JSONEncoder().encode(data) {
             try? encoded.write(to: applicationSupportURL, options: .atomic)
         }
-        
-        // Also sync to UserDefaults as secondary backup
-        UserDefaults.standard.set(launchAtLogin, forKey: "Integra_launchAtLogin")
-        UserDefaults.standard.set(preferredTerminal.rawValue, forKey: "Integra_preferredTerminal")
-        UserDefaults.standard.set(preferredEditor.rawValue, forKey: "Integra_preferredEditor")
-        UserDefaults.standard.set(autoReconnectOnRecovery, forKey: "Integra_autoReconnectOnRecovery")
-        UserDefaults.standard.set(enableDeveloperAITools, forKey: "Integra_enableDeveloperAITools")
-        UserDefaults.standard.set(defaultMountsFolder, forKey: "Integra_defaultMountsFolder")
     }
 }

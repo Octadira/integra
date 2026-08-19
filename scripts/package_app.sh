@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.9.0"
+VERSION="0.10.0"
 echo "=== Building Integra v$VERSION (Native Swift & Clean Drag-and-Drop DMG) ==="
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$PROJECT_DIR/dist"
@@ -23,9 +23,15 @@ echo "--> Compiling Swift Release Binary..."
 swift build -c release
 
 RELEASE_BIN="$PROJECT_DIR/.build/release/Integra"
+RELEASE_MCP_BIN="$PROJECT_DIR/.build/release/integra-mcp"
 
 if [ ! -f "$RELEASE_BIN" ]; then
     echo "Error: Compiled binary not found at $RELEASE_BIN"
+    exit 1
+fi
+
+if [ ! -f "$RELEASE_MCP_BIN" ]; then
+    echo "Error: Compiled MCP binary not found at $RELEASE_MCP_BIN"
     exit 1
 fi
 
@@ -36,6 +42,14 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 
 cp "$RELEASE_BIN" "$APP_BUNDLE/Contents/MacOS/Integra"
 chmod +x "$APP_BUNDLE/Contents/MacOS/Integra"
+
+cp "$RELEASE_MCP_BIN" "$APP_BUNDLE/Contents/MacOS/integra-mcp"
+chmod +x "$APP_BUNDLE/Contents/MacOS/integra-mcp"
+
+# Install local binary helper
+mkdir -p "$HOME/.local/bin"
+cp "$RELEASE_MCP_BIN" "$HOME/.local/bin/integra-mcp"
+chmod +x "$HOME/.local/bin/integra-mcp"
 
 if [ -f "$PROJECT_DIR/Resources/AppIcon.icns" ]; then
     echo "--> Copying AppIcon.icns to App Bundle..."

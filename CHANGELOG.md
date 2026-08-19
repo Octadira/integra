@@ -5,6 +5,22 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-08-19
+
+### Added
+- **Native Model Context Protocol (MCP) Server (`integra-mcp`)**:
+  - Implemented high-performance JSON-RPC 2.0 `stdio` MCP server binary exposing `integra_execute_command`, `integra_list_servers`, and `integra_get_tunnels` tools directly to AI clients.
+  - Sub-5ms remote command execution through persistent OpenSSH ControlMaster sockets with full support for path mapping, environment isolation, and privilege escalation.
+- **1-Click IDE Auto-Configuration (`MCPConfigService.swift`)**:
+  - Integrated 1-click automatic discovery and registration of the Integra MCP server across all major AI coding assistants and IDEs: Claude Desktop, Cursor, Google Antigravity 2.0 (IDE & CLI), VS Code, Windsurf, Cline, Roo Code, Continue.dev, Pi.dev, and Zed.
+  - Non-destructively merges server entries into client config files while preserving existing third-party servers.
+- **AI Integration Modes (`AIIntegrationMode.swift` & `SettingsView.swift`)**:
+  - Added configurable integration modes: `MCP-Only` (default: zero project file pollution), `Legacy CLI Bridge` (markdown injection), and `Hybrid` (hierarchical dual-stack priority).
+- **Expanded Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added 6 new automated tests for MCP JSON-RPC protocol compliance, multi-client configuration parsing, and zero-pollution lifecycle verification (25/25 tests passing).
+
+---
+
 ## [0.9.0] - 2026-08-17
 
 ### Added

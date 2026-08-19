@@ -176,6 +176,7 @@ func main() async {
     }
     
     await TestContext.runAsyncTest(suite: "AgentInstructionTests", name: "testNonDestructiveInjectionAndRestorationLifecycle") {
+        AppSettings.shared.aiIntegrationMode = .cliAndMarkdown
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("integra_test_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -210,6 +211,7 @@ func main() async {
     }
     
     await TestContext.runAsyncTest(suite: "AgentInstructionTests", name: "testPureIntegraFileDeletionOnUnmount") {
+        AppSettings.shared.aiIntegrationMode = .cliAndMarkdown
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("integra_test_pure_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -332,6 +334,104 @@ func main() async {
         """
         let entries = SSHConfigParser.parse(content: emptyConfig)
         TestContext.assertTrue(entries.isEmpty)
+    }
+    
+    // ---------------------------------------------------------
+    // 7. Model Context Protocol (MCP) & AI Integration Modes
+    // ---------------------------------------------------------
+    print("▶︎ Running Suite: Model Context Protocol (MCP) & IDE Auto-Config")
+    
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testSupportedAIClientsConfigPaths") {
+        for client in SupportedAIClient.allCases {
+            TestContext.assertFalse(client.configPath.isEmpty, "Config path for \(client.rawValue) must not be empty")
+            TestContext.assertTrue(client.configPath.contains(NSHomeDirectory()), "Config path must be within user home directory")
+        }
+    }
+    
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testJSONMergingPreservesExistingServers") {
+        let sampleClaudeJson = """
+        {
+          "mcpServers": {
+            "sqlite": {
+              "command": "uvx",
+              "args": ["mcp-server-sqlite", "--db-path", "/data/test.db"]
+            }
+          },
+          "preferences": {
+            "theme": "dark"
+          }
+        }
+        """
+        guard let data = sampleClaudeJson.data(using: .utf8),
+              var rootDict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              var mcpServers = rootDict["mcpServers"] as? [String: Any] else {
+            TestContext.assertTrue(false, "Failed to parse initial test JSON")
+            return
+        }
+        
+        // Simulate adding Integra entry
+        mcpServers["integra"] = [
+            "command": "/Applications/Integra.app/Contents/MacOS/integra-mcp",
+            "args": [] as [String]
+        ]
+        rootDict["mcpServers"] = mcpServers
+        
+        TestContext.assertEqual(mcpServers.count, 2, "mcpServers must now contain exactly 2 servers")
+        TestContext.assertNotNil(mcpServers["sqlite"], "Existing sqlite server must be preserved")
+        TestContext.assertNotNil(mcpServers["integra"], "Integra server must be present")
+        TestContext.assertNotNil(rootDict["preferences"], "Existing root preferences must be preserved")
+    }
+    
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testZedContextServersFormat") {
+        var rootDict: [String: Any] = [:]
+        var contextServers = rootDict["context_servers"] as? [String: Any] ?? [:]
+        contextServers["integra"] = [
+            "command": "/Applications/Integra.app/Contents/MacOS/integra-mcp",
+            "args": [] as [String]
+        ]
+        rootDict["context_servers"] = contextServers
+        
+        TestContext.assertNotNil(rootDict["context_servers"], "Zed configuration must use context_servers key")
+        let updatedServers = rootDict["context_servers"] as? [String: Any]
+        TestContext.assertNotNil(updatedServers?["integra"], "Zed context_servers must have integra entry")
+    }
+    
+    print("▶︎ Running Suite: AI Integration Modes & Zero-Pollution Lifecycle")
+    
+    TestContext.runTest(suite: "AIIntegrationModeTests", name: "testHybridModeGeneratesHierarchicalDirectives") {
+        let profile = SSHProfile(name: "Staging", host: "10.0.0.5", port: 22, user: "admin")
+        AppSettings.shared.aiIntegrationMode = .hybrid
+        
+        let instructions = AgentInstructionService.shared.generateInstructions(for: profile)
+        TestContext.assertTrue(instructions.contains("INTEGRA DUAL-STACK"), "Hybrid instructions must contain DUAL-STACK header")
+        TestContext.assertTrue(instructions.contains("integra_execute_command"), "Hybrid instructions must mention native MCP tool as preferred")
+        TestContext.assertTrue(instructions.contains("integra-exec"), "Hybrid instructions must mention integra-exec as fallback")
+    }
+    
+    TestContext.runTest(suite: "AIIntegrationModeTests", name: "testLegacyCLIModeGeneratesClassicDirectives") {
+        let profile = SSHProfile(name: "Staging", host: "10.0.0.5", port: 22, user: "admin")
+        AppSettings.shared.aiIntegrationMode = .cliAndMarkdown
+        
+        let instructions = AgentInstructionService.shared.generateInstructions(for: profile)
+        TestContext.assertTrue(instructions.contains("INTEGRA AI BRIDGE"), "Legacy instructions must contain INTEGRA AI BRIDGE header")
+        TestContext.assertTrue(instructions.contains("integra-exec docker ps"), "Legacy instructions must contain standard CLI examples")
+    }
+    
+    TestContext.runTest(suite: "AIIntegrationModeTests", name: "testMCPOnlyModeLeavesDirectoryClean") {
+        let tempDir = NSTemporaryDirectory() + "integra_mcp_clean_test_\(UUID().uuidString)"
+        try? FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: tempDir) }
+        
+        var profile = SSHProfile(name: "TestClean", host: "127.0.0.1", port: 22, user: "test")
+        profile.localPath = tempDir
+        
+        AppSettings.shared.aiIntegrationMode = .mcpOnly
+        AgentInstructionService.shared.injectInstructions(for: profile)
+        
+        let agentsPath = "\(tempDir)/AGENTS.md"
+        let claudePath = "\(tempDir)/CLAUDE.md"
+        TestContext.assertFalse(FileManager.default.fileExists(atPath: agentsPath), "In .mcpOnly mode, AGENTS.md must NOT be created")
+        TestContext.assertFalse(FileManager.default.fileExists(atPath: claudePath), "In .mcpOnly mode, CLAUDE.md must NOT be created")
     }
     
     print("")

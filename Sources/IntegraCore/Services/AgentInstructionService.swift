@@ -19,6 +19,7 @@ public class AgentInstructionService {
         let safeName = sanitizeForMarkdown(profile.name.isEmpty ? profile.host : profile.name)
         let safeHost = sanitizeForMarkdown(profile.host)
         let safeUser = sanitizeForMarkdown(profile.effectiveUser)
+        let mode = AppSettings.shared.aiIntegrationMode
         
         var tunnelInfo = ""
         let enabledTunnels = profile.portTunnels.filter { $0.isEnabled }
@@ -28,6 +29,31 @@ public class AgentInstructionService {
                 let safeTunnelName = sanitizeForMarkdown(t.name)
                 tunnelInfo += "- **\(safeTunnelName)**: `http://127.0.0.1:\(t.localPort)` ➔ Remote `:\(t.remotePort)`\n"
             }
+        }
+        
+        if mode == .hybrid {
+            return """
+            \(startDelimiter)
+            # ⚠️ REMOTE EXECUTION ENVIRONMENT (INTEGRA DUAL-STACK)
+            
+            > [!IMPORTANT]
+            > **YOU ARE WORKING IN A REMOTE-MOUNTED SSHFS WORKSPACE** on **\(safeName)** (\(safeUser)@\(safeHost)).
+            > Standard local terminal commands execute on macOS by default, NOT on the remote server.
+            
+            ---
+            
+            ### 🚨 EXECUTION RULES (HIERARCHICAL PRIORITY):
+            1. 🥇 **PREFERRED (If Integra MCP Server is connected)**:
+               - Use the native `integra_execute_command` MCP Tool directly for all shell, build, test, and container operations.
+            2. 🥈 **FALLBACK (If MCP is not active in your IDE)**:
+               - Prefix local terminal commands with `integra-exec <command>`:
+                 ```bash
+                 integra-exec docker compose up -d
+                 integra-exec npm test
+                 ```
+            \(tunnelInfo)
+            \(endDelimiter)
+            """
         }
         
         return """
@@ -66,6 +92,12 @@ public class AgentInstructionService {
     public func injectInstructions(for profile: SSHProfile) {
         let mountPath = (profile.defaultMountPath as NSString).standardizingPath
         guard FileManager.default.fileExists(atPath: mountPath) else { return }
+        
+        // Mode 1: MCP-Only -> Zero file pollution. If previously injected, clean it up!
+        if AppSettings.shared.aiIntegrationMode == .mcpOnly {
+            removeInstructions(for: profile)
+            return
+        }
         
         let instructions = generateInstructions(for: profile)
         let filenames = ["AGENTS.md", "CLAUDE.md"]
