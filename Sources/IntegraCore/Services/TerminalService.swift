@@ -84,24 +84,31 @@ public class TerminalService {
                 task.arguments = ["-a", "Antigravity", expanded]
             }
         case .codex:
-            let candidateNames = ["Codex", "OpenAI Codex", "ChatGPT", "Codex IDE"]
-            var opened = false
-            for name in candidateNames {
-                if FileManager.default.fileExists(atPath: "/Applications/\(name).app") ||
-                   FileManager.default.fileExists(atPath: "\(NSHomeDirectory())/Applications/\(name).app") {
-                    task.arguments = ["-a", name, expanded]
-                    opened = true
-                    break
-                }
-            }
-            if !opened {
-                if FileManager.default.fileExists(atPath: "/usr/local/bin/codex") {
+            let candidateCLIs = [
+                "/Applications/ChatGPT.app/Contents/Resources/codex",
+                "\(NSHomeDirectory())/Applications/ChatGPT.app/Contents/Resources/codex",
+                "/Applications/Codex.app/Contents/Resources/codex",
+                "/usr/local/bin/codex",
+                "/opt/homebrew/bin/codex",
+                "\(NSHomeDirectory())/.local/bin/codex",
+                "\(NSHomeDirectory())/.cargo/bin/codex"
+            ]
+            
+            for cliPath in candidateCLIs {
+                if FileManager.default.isExecutableFile(atPath: cliPath) {
                     let cliTask = Process()
-                    cliTask.executableURL = URL(fileURLWithPath: "/usr/local/bin/codex")
-                    cliTask.arguments = [expanded]
+                    cliTask.executableURL = URL(fileURLWithPath: cliPath)
+                    cliTask.arguments = ["app", expanded]
                     try? cliTask.run()
                     return
                 }
+            }
+            
+            if FileManager.default.fileExists(atPath: "/Applications/Codex.app") {
+                task.arguments = ["-a", "Codex", expanded]
+            } else if FileManager.default.fileExists(atPath: "/Applications/ChatGPT.app") {
+                task.arguments = ["-a", "ChatGPT", expanded]
+            } else {
                 task.arguments = ["-a", "Codex", expanded]
             }
         }

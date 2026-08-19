@@ -15,6 +15,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
     case continueDev = "Continue.dev"
     case piDev = "Pi.dev"
     case zed = "Zed"
+    case codex = "Codex (OpenAI)"
     
     public var id: String { self.rawValue }
     
@@ -33,6 +34,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
         case .continueDev: return "play.circle.fill"
         case .piDev: return "number.circle.fill"
         case .zed: return "z.circle.fill"
+        case .codex: return "sparkles"
         }
     }
     
@@ -65,6 +67,8 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
             return "\(home)/.pi/mcp.json"
         case .zed:
             return "\(home)/.config/zed/settings.json"
+        case .codex:
+            return "\(home)/.codex/config.toml"
         }
     }
     
@@ -135,8 +139,18 @@ public class MCPConfigService: ObservableObject {
         let pathsToCheck = [client.primaryConfigPath] + client.secondaryConfigPaths
         
         for path in pathsToCheck {
-            guard FileManager.default.fileExists(atPath: path),
-                  let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            guard FileManager.default.fileExists(atPath: path) else { continue }
+            
+            if client == .codex {
+                if let content = try? String(contentsOfFile: path, encoding: .utf8) {
+                    if content.contains("[mcp_servers.integra]") {
+                        return true
+                    }
+                }
+                continue
+            }
+            
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 continue
             }
@@ -177,6 +191,44 @@ public class MCPConfigService: ObservableObject {
             do {
                 if !FileManager.default.fileExists(atPath: parentDir) {
                     try FileManager.default.createDirectory(atPath: parentDir, withIntermediateDirectories: true)
+                }
+                
+                if client == .codex {
+                    let candidateCLIs = [
+                        "/Applications/ChatGPT.app/Contents/Resources/codex",
+                        "\(NSHomeDirectory())/Applications/ChatGPT.app/Contents/Resources/codex",
+                        "/Applications/Codex.app/Contents/Resources/codex",
+                        "/usr/local/bin/codex",
+                        "/opt/homebrew/bin/codex",
+                        "\(NSHomeDirectory())/.local/bin/codex"
+                    ]
+                    
+                    for cli in candidateCLIs {
+                        if FileManager.default.isExecutableFile(atPath: cli) {
+                            let proc = Process()
+                            proc.executableURL = URL(fileURLWithPath: cli)
+                            proc.arguments = ["mcp", "add", "integra", "--", MCPConfigService.binaryPath]
+                            try? proc.run()
+                            proc.waitUntilExit()
+                            if proc.terminationStatus == 0 {
+                                break
+                            }
+                        }
+                    }
+                    
+                    let configURL = URL(fileURLWithPath: path)
+                    var content = (try? String(contentsOf: configURL, encoding: .utf8)) ?? ""
+                    if !content.contains("[mcp_servers.integra]") {
+                        let tomlBlock = """
+                        
+                        [mcp_servers.integra]
+                        command = "\(MCPConfigService.binaryPath)"
+                        args = []
+                        """
+                        content.append(tomlBlock)
+                        try? content.write(to: configURL, atomically: true, encoding: .utf8)
+                    }
+                    continue
                 }
                 
                 var rootDict: [String: Any] = [:]
@@ -239,6 +291,39 @@ public class MCPConfigService: ObservableObject {
         let allPaths = [client.primaryConfigPath] + client.secondaryConfigPaths
         
         for path in allPaths {
+            if client == .codex {
+                let candidateCLIs = [
+                    "/Applications/ChatGPT.app/Contents/Resources/codex",
+                    "\(NSHomeDirectory())/Applications/ChatGPT.app/Contents/Resources/codex",
+                    "/Applications/Codex.app/Contents/Resources/codex",
+                    "/usr/local/bin/codex",
+                    "/opt/homebrew/bin/codex",
+                    "\(NSHomeDirectory())/.local/bin/codex"
+                ]
+                
+                for cli in candidateCLIs {
+                    if FileManager.default.isExecutableFile(atPath: cli) {
+                        let proc = Process()
+                        proc.executableURL = URL(fileURLWithPath: cli)
+                        proc.arguments = ["mcp", "remove", "integra"]
+                        try? proc.run()
+                        proc.waitUntilExit()
+                        break
+                    }
+                }
+                
+                let configURL = URL(fileURLWithPath: path)
+                if var content = try? String(contentsOf: configURL, encoding: .utf8), content.contains("[mcp_servers.integra]") {
+                    let pattern = #"\n?\[mcp_servers\.integra\][^\[]*"#
+                    if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                        let range = NSRange(content.startIndex..., in: content)
+                        content = regex.stringByReplacingMatches(in: content, options: [], range: range, withTemplate: "")
+                        try? content.write(to: configURL, atomically: true, encoding: .utf8)
+                    }
+                }
+                continue
+            }
+            
             guard FileManager.default.fileExists(atPath: path),
                   let existingData = try? Data(contentsOf: URL(fileURLWithPath: path)),
                   var rootDict = (try? JSONSerialization.jsonObject(with: existingData)) as? [String: Any] else {

@@ -427,6 +427,37 @@ func main() async {
         TestContext.assertNotNil(mcpServersDict?["integra"], "mcp.servers must contain integra entry")
     }
     
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testCodexTOMLConfigFormat") {
+        let tempDir = NSTemporaryDirectory() + "integra_codex_test_\(UUID().uuidString)"
+        let configPath = "\(tempDir)/config.toml"
+        try? FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: tempDir) }
+        
+        let initialToml = """
+        [features]
+        js_repl = false
+        """
+        try! initialToml.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
+        
+        // Emulate install for Codex
+        var content = try! String(contentsOf: URL(fileURLWithPath: configPath), encoding: .utf8)
+        if !content.contains("[mcp_servers.integra]") {
+            let tomlBlock = """
+            
+            [mcp_servers.integra]
+            command = "/Applications/Integra.app/Contents/MacOS/integra-mcp"
+            args = []
+            """
+            content.append(tomlBlock)
+            try! content.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
+        }
+        
+        let updatedContent = try! String(contentsOf: URL(fileURLWithPath: configPath), encoding: .utf8)
+        TestContext.assertTrue(updatedContent.contains("[mcp_servers.integra]"), "Codex TOML must contain [mcp_servers.integra]")
+        TestContext.assertTrue(updatedContent.contains("command = \"/Applications/Integra.app/Contents/MacOS/integra-mcp\""), "Codex TOML must contain correct binary path")
+        TestContext.assertTrue(updatedContent.contains("js_repl = false"), "Codex TOML must preserve existing settings")
+    }
+    
     print("▶︎ Running Suite: AI Integration Modes & Zero-Pollution Lifecycle")
     
     TestContext.runTest(suite: "AIIntegrationModeTests", name: "testHybridModeGeneratesHierarchicalDirectives") {

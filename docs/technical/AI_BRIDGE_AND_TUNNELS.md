@@ -48,17 +48,18 @@ Integra implements the open **Model Context Protocol (MCP)** specification via a
 
 ## 3. 1-Click Multi-Assistant Auto-Configuration (`MCPConfigService.swift`)
 
-Integra automatically discovers, creates, and non-destructively merges the `integra-mcp` server registration across **13 leading AI clients**:
+Integra automatically discovers, creates, and non-destructively merges the `integra-mcp` server registration across **14 leading AI clients**:
 
 | AI Assistant / IDE | Primary Configuration Path | Schema Format |
 | :--- | :--- | :--- |
 | **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` | `mcpServers.integra` |
 | **Claude Code CLI** | `~/.claude.json` & `~/.claude/settings.json` | `mcpServers.integra` |
+| **OpenAI Codex** | `~/.codex/config.toml` | `[mcp_servers.integra]` (TOML / CLI) |
 | **Cursor** | `~/.cursor/mcp.json` & globalStorage | `mcpServers.integra` |
 | **Google Antigravity 2.0** | `~/.gemini/config/mcp_config.json` & `~/.gemini/antigravity/` | `mcpServers.integra` |
 | **VS Code (Copilot & MCP)**| `~/Library/Application Support/Code/User/mcp.json` & storage | `servers.integra` (`type: stdio`) |
-| **OpenCode CLI** | `~/.config/opencode/opencode.json` | `mcp.servers.integra` & `mcpServers` |
-| **OpenCode Desktop** | `~/Library/Application Support/OpenCode/opencode.json` | `mcp.servers.integra` & `mcpServers` |
+| **OpenCode CLI** | `~/.config/opencode/opencode.json` | `mcp.servers.integra` |
+| **OpenCode Desktop** | `~/Library/Application Support/OpenCode/opencode.json` | `mcp.servers.integra` |
 | **Windsurf** | `~/.codeium/windsurf/mcp_config.json` | `mcpServers.integra` |
 | **Cline** | `Code/User/globalStorage/saoudrizwan.claude-dev/...` | `mcpServers.integra` |
 | **Roo Code** | `Code/User/globalStorage/rooveterinaryinc.roo-cline/...` | `mcpServers.integra` |

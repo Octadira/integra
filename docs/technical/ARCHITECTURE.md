@@ -73,7 +73,7 @@
 
 ## 4. Core Services & Storage Layer (`Sources/IntegraCore/Services/`)
 
-- **`MCPConfigService.swift`**: Discovers, reads, and merges the Integra MCP server configuration across **13 AI clients** (Claude Desktop, Claude Code CLI, Cursor, Antigravity 2.0, VS Code, OpenCode CLI & Desktop, Windsurf, Cline, Roo Code, Continue.dev, Pi.dev, Zed) with atomic non-destructive JSON merging.
+- **`MCPConfigService.swift`**: Discovers, reads, and merges the Integra MCP server configuration across **14 AI clients** (Claude Desktop, Claude Code CLI, OpenAI Codex, Cursor, Antigravity 2.0, VS Code, OpenCode CLI & Desktop, Windsurf, Cline, Roo Code, Continue.dev, Pi.dev, Zed) with atomic non-destructive JSON and TOML merging.
 - **`SudoAuthManager.swift`**: Manages Touch ID biometric evaluation (`LAContext`), universal macOS GUI dialog prompts, and 15-minute grace period session caching for administrative command execution.
 - **`ProfileStore.swift`**: Manages CRUD operations for connection profiles. Persists data permanently in `~/Library/Application Support/Integra/profiles.json`, guaranteeing cross-version survival.
 - **`SSHFSService.swift`**: Manages background execution of `sshfs` processes, mount table polling (`/sbin/mount`), active mount detection, and graceful unmounting.

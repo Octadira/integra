@@ -5,6 +5,21 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-08-19
+
+### Added
+- **OpenAI Codex MCP Auto-Configuration (`MCPConfigService.swift`)**:
+  - Added native Model Context Protocol (MCP) auto-configuration for OpenAI Codex (`~/.codex/config.toml`).
+  - Supports CLI registration via `codex mcp add/remove` as well as direct non-destructive TOML parsing and insertion under `[mcp_servers.integra]`.
+  - Expanded supported AI clients to 14 assistants in 1-Click Auto-Configuration.
+- **Dedicated Codex IDE Workspace Launcher (`TerminalService.swift`)**:
+  - Fixed issue where opening a mounted server in Codex opened the general ChatGPT conversational window.
+  - Integra now leverages the embedded Codex CLI (`/Applications/ChatGPT.app/Contents/Resources/codex app <path>`) to open remote workspaces directly into the Codex IDE environment.
+- **Automated Test Suite Expansion (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testCodexTOMLConfigFormat` (30/30 tests passing).
+
+---
+
 ## [0.11.1] - 2026-08-19
 
 ### Fixed
