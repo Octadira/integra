@@ -174,8 +174,7 @@ public class MCPConfigService: ObservableObject {
                 }
             } else if client == .openCodeCLI || client == .openCodeDesktop {
                 if let mcp = json["mcp"] as? [String: Any],
-                   let servers = mcp["servers"] as? [String: Any],
-                   servers["integra"] != nil {
+                   mcp["integra"] != nil {
                     return true
                 }
                 return false
@@ -263,14 +262,14 @@ public class MCPConfigService: ObservableObject {
                     mcpServers["integra"] = standardEntry
                     rootDict["mcpServers"] = mcpServers
                 } else if client == .openCodeCLI || client == .openCodeDesktop {
-                    var mcpDict = rootDict["mcp"] as? [String: Any] ?? ["enabled": true]
-                    var servers = mcpDict["servers"] as? [String: Any] ?? [:]
-                    servers["integra"] = [
-                        "command": MCPConfigService.binaryPath,
-                        "args": [] as [String]
+                    var mcpDict = rootDict["mcp"] as? [String: Any] ?? [:]
+                    mcpDict.removeValue(forKey: "enabled")
+                    mcpDict.removeValue(forKey: "servers")
+                    mcpDict["integra"] = [
+                        "type": "local",
+                        "command": [MCPConfigService.binaryPath],
+                        "enabled": true
                     ]
-                    mcpDict["servers"] = servers
-                    mcpDict["enabled"] = true
                     rootDict["mcp"] = mcpDict
                     rootDict.removeValue(forKey: "mcpServers")
                 } else {
@@ -351,10 +350,10 @@ public class MCPConfigService: ObservableObject {
                     rootDict["mcpServers"] = mcpServers
                 }
             } else if client == .openCodeCLI || client == .openCodeDesktop {
-                if var mcpDict = rootDict["mcp"] as? [String: Any],
-                   var servers = mcpDict["servers"] as? [String: Any] {
-                    servers.removeValue(forKey: "integra")
-                    mcpDict["servers"] = servers
+                if var mcpDict = rootDict["mcp"] as? [String: Any] {
+                    mcpDict.removeValue(forKey: "integra")
+                    mcpDict.removeValue(forKey: "enabled")
+                    mcpDict.removeValue(forKey: "servers")
                     rootDict["mcp"] = mcpDict
                 }
                 rootDict.removeValue(forKey: "mcpServers")

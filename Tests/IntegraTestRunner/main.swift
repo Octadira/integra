@@ -409,22 +409,26 @@ func main() async {
         
         // Emulate install for OpenCode
         var rootDict = (try? JSONSerialization.jsonObject(with: initialData)) as? [String: Any] ?? [:]
-        var mcpDict = rootDict["mcp"] as? [String: Any] ?? ["enabled": true]
-        var servers = mcpDict["servers"] as? [String: Any] ?? [:]
-        servers["integra"] = [
-            "command": "/Applications/Integra.app/Contents/MacOS/integra-mcp",
-            "args": [] as [String]
+        var mcpDict = rootDict["mcp"] as? [String: Any] ?? [:]
+        mcpDict.removeValue(forKey: "enabled")
+        mcpDict.removeValue(forKey: "servers")
+        mcpDict["integra"] = [
+            "type": "local",
+            "command": ["/Applications/Integra.app/Contents/MacOS/integra-mcp"],
+            "enabled": true
         ]
-        mcpDict["servers"] = servers
-        mcpDict["enabled"] = true
         rootDict["mcp"] = mcpDict
         rootDict.removeValue(forKey: "mcpServers")
         
         TestContext.assertNil(rootDict["mcpServers"], "OpenCode configuration must NOT contain top-level mcpServers key")
         TestContext.assertNotNil(rootDict["mcp"], "OpenCode configuration must contain mcp dictionary")
         let mcp = rootDict["mcp"] as? [String: Any]
-        let mcpServersDict = mcp?["servers"] as? [String: Any]
-        TestContext.assertNotNil(mcpServersDict?["integra"], "mcp.servers must contain integra entry")
+        let integraEntry = mcp?["integra"] as? [String: Any]
+        TestContext.assertNotNil(integraEntry, "mcp must contain integra entry directly")
+        TestContext.assertEqual(integraEntry?["type"] as? String, "local", "integra entry must have type: local")
+        TestContext.assertEqual(integraEntry?["enabled"] as? Bool, true, "integra entry must have enabled: true")
+        let cmdArray = integraEntry?["command"] as? [String]
+        TestContext.assertEqual(cmdArray?.first, "/Applications/Integra.app/Contents/MacOS/integra-mcp", "command must be an array with the binary path")
     }
     
     TestContext.runTest(suite: "MCPConfigServiceTests", name: "testCodexTOMLConfigFormat") {

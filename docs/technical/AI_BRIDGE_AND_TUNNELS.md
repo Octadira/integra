@@ -59,8 +59,8 @@ Integra automatically discovers, creates, and non-destructively merges the `inte
 | **Cursor** | `~/.cursor/mcp.json` & globalStorage | `mcpServers.integra` |
 | **Google Antigravity 2.0** | `~/.gemini/config/mcp_config.json` & `~/.gemini/antigravity/` | `mcpServers.integra` |
 | **VS Code (Copilot & MCP)**| `~/Library/Application Support/Code/User/mcp.json` & storage | `servers.integra` (`type: stdio`) |
-| **OpenCode CLI** | `~/.config/opencode/opencode.json` | `mcp.servers.integra` |
-| **OpenCode Desktop** | `~/Library/Application Support/OpenCode/opencode.json` | `mcp.servers.integra` |
+| **OpenCode CLI** | `~/.config/opencode/opencode.json` | `mcp.integra` (`type: local`) |
+| **OpenCode Desktop** | `~/Library/Application Support/OpenCode/opencode.json` | `mcp.integra` (`type: local`) |
 | **Windsurf** | `~/.codeium/windsurf/mcp_config.json` | `mcpServers.integra` |
 | **Cline** | `Code/User/globalStorage/saoudrizwan.claude-dev/...` | `mcpServers.integra` |
 | **Roo Code** | `Code/User/globalStorage/rooveterinaryinc.roo-cline/...` | `mcpServers.integra` |

@@ -85,7 +85,7 @@ public struct SidebarView: View {
                         .lineLimit(1)
                     
                     HStack(spacing: 6) {
-                        Text("Integra v0.14.1")
+                        Text("Integra v0.14.2")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .lineLimit(1)

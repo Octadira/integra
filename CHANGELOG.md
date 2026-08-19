@@ -5,6 +5,18 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2] - 2026-08-20
+
+### Fixed
+- **OpenCode CLI & Desktop MCP Schema Conformance (`MCPConfigService.swift`)**:
+  - Corrected OpenCode MCP configuration schema format to adhere to the official specification (`"mcp": { "integra": { "type": "local", "command": ["<bin>"], "enabled": true } }`).
+  - Added automatic removal of legacy/invalid `"enabled": true` and `"servers": {}` sub-keys during auto-configuration and uninstallation.
+  - Successfully verified live connection with `opencode mcp list` (`✓ integra connected`).
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Updated `testOpenCodeConfigFormatWithoutTopLevelMCPServers` to validate `"type": "local"` and `command` array structures (35/35 tests passing).
+
+---
+
 ## [0.14.1] - 2026-08-19
 
 ### Fixed
