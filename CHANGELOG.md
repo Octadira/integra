@@ -5,6 +5,15 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2026-08-19
+
+### Added
+- **Claude Code CLI & OpenCode (CLI & Desktop) Support (`MCPConfigService.swift`)**:
+  - Added native auto-configuration for Anthropic's **Claude Code CLI** (`~/.claude.json` & `~/.claude/settings.json`).
+  - Added native auto-configuration for **OpenCode CLI** (`~/.config/opencode/opencode.json`) and **OpenCode Desktop** (`~/Library/Application Support/OpenCode/opencode.json`), supporting both `mcp.servers` and root `mcpServers` schemas.
+
+---
+
 ## [0.10.1] - 2026-08-19
 
 ### Fixed

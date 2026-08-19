@@ -2,9 +2,12 @@ import Foundation
 import AppKit
 
 public enum SupportedAIClient: String, CaseIterable, Identifiable {
+    case claudeCode = "Claude Code CLI"
     case claudeDesktop = "Claude Desktop"
     case cursor = "Cursor"
     case antigravity = "Antigravity 2.0 (Google)"
+    case openCodeCLI = "OpenCode CLI"
+    case openCodeDesktop = "OpenCode Desktop"
     case vsCode = "VS Code"
     case windsurf = "Windsurf"
     case cline = "Cline"
@@ -17,9 +20,12 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
     
     public var icon: String {
         switch self {
+        case .claudeCode: return "terminal.fill"
         case .claudeDesktop: return "message.badge.filled.fill"
         case .cursor: return "cursorarrow.rays"
         case .antigravity: return "atom"
+        case .openCodeCLI: return "chevron.left.forwardslash.chevron.right"
+        case .openCodeDesktop: return "macwindow"
         case .vsCode: return "chevron.left.forwardslash.chevron.right"
         case .windsurf: return "wind"
         case .cline: return "terminal.fill"
@@ -33,12 +39,18 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
     public var configPath: String {
         let home = NSHomeDirectory()
         switch self {
+        case .claudeCode:
+            return "\(home)/.claude.json"
         case .claudeDesktop:
             return "\(home)/Library/Application Support/Claude/claude_desktop_config.json"
         case .cursor:
             return "\(home)/.cursor/mcp.json"
         case .antigravity:
             return "\(home)/.gemini/config/mcp_config.json"
+        case .openCodeCLI:
+            return "\(home)/.config/opencode/opencode.json"
+        case .openCodeDesktop:
+            return "\(home)/Library/Application Support/OpenCode/opencode.json"
         case .vsCode:
             return "\(home)/Library/Application Support/Code/User/globalStorage/mcp.json"
         case .windsurf:
@@ -106,6 +118,18 @@ public class MCPConfigService: ObservableObject {
             return false
         }
         
+        if client == .openCodeCLI || client == .openCodeDesktop {
+            if let mcp = json["mcp"] as? [String: Any],
+               let servers = mcp["servers"] as? [String: Any],
+               servers["integra"] != nil {
+                return true
+            }
+            if let servers = json["mcpServers"] as? [String: Any], servers["integra"] != nil {
+                return true
+            }
+            return false
+        }
+        
         if let servers = json["mcpServers"] as? [String: Any], servers["integra"] != nil {
             return true
         }
@@ -135,11 +159,20 @@ public class MCPConfigService: ObservableObject {
             
             if client == .zed {
                 var contextServers = rootDict["context_servers"] as? [String: Any] ?? [:]
-                contextServers["integra"] = [
-                    "command": MCPConfigService.binaryPath,
-                    "args": [] as [String]
-                ]
+                contextServers["integra"] = integraEntry
                 rootDict["context_servers"] = contextServers
+            } else if client == .openCodeCLI || client == .openCodeDesktop {
+                var mcpDict = rootDict["mcp"] as? [String: Any] ?? ["enabled": true]
+                var servers = mcpDict["servers"] as? [String: Any] ?? [:]
+                servers["integra"] = integraEntry
+                mcpDict["servers"] = servers
+                mcpDict["enabled"] = true
+                rootDict["mcp"] = mcpDict
+                
+                // Also add root mcpServers for compatibility
+                var mcpServers = rootDict["mcpServers"] as? [String: Any] ?? [:]
+                mcpServers["integra"] = integraEntry
+                rootDict["mcpServers"] = mcpServers
             } else {
                 var mcpServers = rootDict["mcpServers"] as? [String: Any] ?? [:]
                 mcpServers["integra"] = integraEntry
@@ -149,9 +182,22 @@ public class MCPConfigService: ObservableObject {
             let updatedData = try JSONSerialization.data(withJSONObject: rootDict, options: [.prettyPrinted, .sortedKeys])
             try updatedData.write(to: URL(fileURLWithPath: path), options: .atomic)
             
+            // Sync secondary backup paths for specific tools
             if client == .antigravity {
                 let secondaryPath = "\(NSHomeDirectory())/.gemini/antigravity/mcp_config.json"
                 try? updatedData.write(to: URL(fileURLWithPath: secondaryPath), options: .atomic)
+            } else if client == .claudeCode {
+                let secondaryPath = "\(NSHomeDirectory())/.claude/settings.json"
+                if FileManager.default.fileExists(atPath: secondaryPath),
+                   let secData = try? Data(contentsOf: URL(fileURLWithPath: secondaryPath)),
+                   var secJson = (try? JSONSerialization.jsonObject(with: secData)) as? [String: Any] {
+                    var secServers = secJson["mcpServers"] as? [String: Any] ?? [:]
+                    secServers["integra"] = integraEntry
+                    secJson["mcpServers"] = secServers
+                    if let secEncoded = try? JSONSerialization.data(withJSONObject: secJson, options: [.prettyPrinted, .sortedKeys]) {
+                        try? secEncoded.write(to: URL(fileURLWithPath: secondaryPath), options: .atomic)
+                    }
+                }
             }
             
             clientStatus[client] = true
@@ -175,6 +221,17 @@ public class MCPConfigService: ObservableObject {
                 if var contextServers = rootDict["context_servers"] as? [String: Any] {
                     contextServers.removeValue(forKey: "integra")
                     rootDict["context_servers"] = contextServers
+                }
+            } else if client == .openCodeCLI || client == .openCodeDesktop {
+                if var mcpDict = rootDict["mcp"] as? [String: Any],
+                   var servers = mcpDict["servers"] as? [String: Any] {
+                    servers.removeValue(forKey: "integra")
+                    mcpDict["servers"] = servers
+                    rootDict["mcp"] = mcpDict
+                }
+                if var mcpServers = rootDict["mcpServers"] as? [String: Any] {
+                    mcpServers.removeValue(forKey: "integra")
+                    rootDict["mcpServers"] = mcpServers
                 }
             } else {
                 if var mcpServers = rootDict["mcpServers"] as? [String: Any] {
