@@ -40,9 +40,10 @@ curl -fsSL https://raw.githubusercontent.com/Octadira/integra/main/scripts/insta
 ## ✨ Key Features
 
 - **🚀 Zero Kernel Extensions (100% SIP Compliant)**: Powered by FUSE-T (NFS user-space emulation). Runs natively on Apple Silicon (M1/M2/M3/M4) and Intel without modifying System Integrity Protection (SIP).
-- **🧠 Native Model Context Protocol (MCP) Server (`integra-mcp`)**: Built-in JSON-RPC 2.0 `stdio` server exposing native tools (`integra_execute_command`, `integra_list_servers`, `integra_get_tunnels`) directly to AI clients with sub-5ms OpenSSH ControlMaster latency.
-- **⚡ 1-Click AI Assistant Auto-Configuration**: 1-click automatic discovery and registration of the Integra MCP server across **15 AI clients** (Claude Desktop, Claude Code CLI, OpenAI Codex, Kiro, Cursor, Antigravity 2.0, VS Code, OpenCode CLI & Desktop, Windsurf, Cline, Roo Code, Continue.dev, Pi.dev, and Zed).
-- **🛡️ Native Sudo Privilege Escalation & Touch ID Authorization**: AI agents can execute administrative commands with elevated privileges without exposing plain-text passwords. Includes Touch ID / native macOS dialog authorization and configurable 15-minute grace period session caching.
+- **🧠 Native Model Context Protocol (MCP) Server (`integra-mcp`)**: Built-in JSON-RPC 2.0 `stdio` server exposing native tools (`integra_execute_command`, `integra_list_servers`, `integra_get_tunnels`) directly to AI clients with sub-5ms OpenSSH ControlMaster latency across both SSH key and password-authenticated servers (via `SSH_ASKPASS`).
+- **⚡ 1-Click AI Assistant Auto-Configuration**: 1-click automatic discovery and registration of the Integra MCP server across **15 AI clients** (Claude Desktop, Claude Code CLI, OpenAI Codex, Kiro, Cursor, Google Antigravity 2.0, VS Code, OpenCode CLI & Desktop, Windsurf, Cline, Roo Code, Continue.dev, Pi.dev, and Zed).
+- **🛡️ Native Sudo Privilege Escalation & Touch ID Authorization**: AI agents can execute administrative commands with elevated privileges without exposing plain-text passwords. Includes Touch ID / native macOS dialog authorization, intelligent root-user bypass, and configurable 15-minute grace period session caching.
+- **🔒 Automatic SSH Key Permission Sanitizer**: Automatically detects and adjusts insecure private key permissions (`.pem`, `.id_rsa`, `.id_ed25519`) from `0644` to `0600` before mounting or tunneling, eliminating OpenSSH key rejection errors.
 - **🎛️ Configurable AI Integration Modes**:
   - **`MCP-Only` (Default)**: Zero project file pollution — `AGENTS.md` and `CLAUDE.md` are not created. Remote workspaces stay 100% pristine.
   - **`Hybrid`**: Dual-stack governance prioritizing native MCP tools with legacy CLI fallbacks.
@@ -50,7 +51,7 @@ curl -fsSL https://raw.githubusercontent.com/Octadira/integra/main/scripts/insta
 - **🔌 Multi-Port SSH Tunneling**: 1-click port forwarding for remote Ollama AI (`11434`), PostgreSQL (`5432`), Redis (`6379`), and custom web services with loopback collision protection.
 - **💻 Zero-Touch Startup & Background Auto-Mount**: Native macOS Launch at Login (`SMAppService.mainApp`). Auto-mounts designated servers silently on system boot.
 - **🔄 Autonomous Network Recovery & Auto-Healing**: Uses Apple `Network.framework` (`NWPathMonitor`) to detect sleep/wake events and Wi-Fi transitions, automatically reconnecting broken mounts and re-establishing ControlMaster sockets with exponential backoff.
-- **🔒 Enterprise-Grade Credential Protection**: Passwords, private key passphrases, and sudo credentials are encrypted exclusively in **Apple Keychain (`Security.framework`)**. Sockets are strictly isolated in `~/.ssh/integra/sock/` with `0700` POSIX permissions.
+- **🔒 Enterprise-Grade Credential Protection**: Passwords, private key passphrases, and sudo credentials are encrypted exclusively in **Apple Keychain (`Security.framework`)** with single-pass in-memory retrieval. Sockets are strictly isolated in `~/.ssh/integra/sock/` with `0700` POSIX permissions.
 - **🖥️ Desktop Shortcuts & Finder Integration**: Automatically pins a clean shortcut on `~/Desktop` upon mount and cleans it up upon unmount.
 - **⚡ IDE & Terminal Launchers**: Open remote workspaces directly in **VS Code**, **Cursor**, **Antigravity 2.0 IDE**, **Windsurf**, **Kiro (kiro.dev)**, **Codex (OpenAI)**, **Zed**, or **OpenCode**, and launch sessions in **Terminal.app**, **Ghostty**, **iTerm2**, or **Warp**.
 - **🌐 Remote Directory Explorer**: Visual remote Linux filesystem navigator built right into the profile editor with parent jumps and hidden dot-file toggling.
@@ -71,7 +72,7 @@ curl -fsSL https://raw.githubusercontent.com/Octadira/integra/main/scripts/insta
 git clone https://github.com/Octadira/integra.git
 cd integra
 
-# Build release binary, run 28 automated tests, and package drag-and-drop DMG installer
+# Build release binary, run 38 automated tests, and package drag-and-drop DMG installer
 ./scripts/package_app.sh
 ```
 

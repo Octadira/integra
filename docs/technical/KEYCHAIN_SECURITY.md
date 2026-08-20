@@ -38,6 +38,12 @@ let attributes: [String: Any] = [
 ### 2.4. Deleting Credentials (`deletePassword` & `deleteSudoPassword`)
 - When a connection profile is deleted from Integra, its corresponding login and sudo Keychain records are permanently purged via `SecItemDelete`.
 
+### 2.5. Single-Pass In-Memory Credential Retrieval
+- Sudo authorization and OpenSSH multiplexing workflows perform a single read from the Keychain per command lifecycle. The credential is held in local volatile scope and passed directly into the evaluation block, preventing repetitive macOS system authorization popups.
+
+### 2.6. Automatic SSH Private Key Permission Sanitizer (`0600`)
+- `SSHProfile.sanitizeIdentityFilePermissionsIfNeeded()` enforces strict `0600` (`-rw-------`) POSIX permissions on SSH private key files (`.pem`, `.id_rsa`, `.id_ed25519`) before initiating connections, preventing OpenSSH rejection when keys are group- or world-readable (`0644`).
+
 ---
 
 ## 3. Threat Model & Mitigations
@@ -46,6 +52,7 @@ let attributes: [String: Any] = [
 | :--- | :--- |
 | **Process Inspection / Memory Dump** | Passwords are piped directly via private UNIX pipes (`Process.standardInput` and in-memory `sudo -S`) and closed immediately. No CLI arguments contain credentials. |
 | **Local File Inspection** | Profile configuration files store only metadata (host, user, port, UUID). Passwords exist exclusively in encrypted Keychain storage. |
+| **Insecure Key File Permissions** | Integra proactively resets private key permissions from `0644` to `0600` prior to connection initialization. |
 | **AI Assistant Password Exposure** | AI clients communicate via structured MCP JSON-RPC. The MCP server handles authorization and password injection locally; the AI model receives only command outputs. |
 | **Unauthorized AI Sudo Execution** | `SudoAuthManager` enforces Touch ID or native macOS system dialog approvals with a 15-minute grace period cache. |
 | **Remote Man-in-the-Middle (MITM)** | Connection utilizes `-o StrictHostKeyChecking=accept-new` to cryptographically pin remote host public keys upon initial trust. |

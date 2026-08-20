@@ -84,20 +84,25 @@ Existing custom third-party MCP servers, user preferences, and IDE settings are 
                                           v
 +-----------------------------------------------------------------------------------+
 |                 Integra MCP Server (SudoAuthManager.swift)                        |
-|  1. Checks Sudo Authorization Policy:                                             |
+|  1. Evaluates Connected User Profile:                                             |
+|     - If effectiveUser == "root": automatically bypasses sudo password prompting. |
+|       Prompts for biometric/dialog confirmation only if policy requires it.       |
+|     - If standard user: queries Keychain with single-pass in-memory retrieval.    |
+|  2. Checks Sudo Authorization Policy:                                             |
 |     - Ask Once per Session (15-min cache): checks active session timestamp        |
 |     - Always Ask: prompts every call                                              |
-|     - Auto-Approve: reads from Keychain                                           |
-|  2. If prompt required:                                                           |
+|     - Auto-Approve: auto-executes immediately                                     |
+|  3. If prompt required:                                                           |
 |     - Touch ID Evaluation via LocalAuthentication.framework (LAContext)           |
 |     - Universal macOS System Dialog fallback with command details & Cancel/Approve|
-|  3. Just-in-Time (JIT) password entry if not stored in Keychain                  |
+|  4. Just-in-Time (JIT) password entry if not stored in Keychain                  |
 +-----------------------------------------+-----------------------------------------+
                                           |
                                           v (Authorized)
 +-----------------------------------------------------------------------------------+
 |                 Secure In-Memory Pipe Execution over SSH Socket                   |
-|     printf '%s\n' '<KEYCHAIN_PASS>' | sudo -S -p '' sh -c '<COMMAND>'             |
+|  - If root: executes command directly (remoteCmd = innerCmd)                      |
+|  - If sudo: printf '%s\n' '<KEYCHAIN_PASS>' | sudo -S -p '' sh -c '<COMMAND>'     |
 +-----------------------------------------+-----------------------------------------+
                                           |
                                           v
@@ -107,9 +112,21 @@ Existing custom third-party MCP servers, user preferences, and IDE settings are 
 +-----------------------------------------------------------------------------------+
 ```
 
+### 4.1. Root Account Execution Optimization
+When connected as the `root` administrative user (UID 0), remote Linux hosts execute commands with full privileges without requiring `sudo` invocation. Integra detects `effectiveUser == "root"`, eliminates unnecessary password prompts, and executes commands cleanly without redundant `sudo` command wrapping while maintaining user authorization safety.
+
 ---
 
-## 5. AI Integration Modes (`AIIntegrationMode.swift`)
+## 5. Persistent OpenSSH ControlMaster Multiplexing (`RemoteExecService.swift`)
+
+Integra establishes persistent OpenSSH ControlMaster UNIX domain sockets (`~/.ssh/integra/sock/i_<shortId>.sock`) upon mount:
+- **SSH Key Authentication**: Connects using `-o BatchMode=yes` and specified private key files.
+- **Password Authentication (`SSH_ASKPASS`)**: For password-authenticated servers, retrieves credentials from Apple Keychain and invokes OpenSSH via a temporary isolated script (`0700` POSIX permissions in `~/.ssh/integra/askpass/`).
+- **Sub-5ms Execution Latency**: AI agents communicate over existing authenticated SSH tunnels without performing repeated TLS/SSH handshakes.
+
+---
+
+## 6. AI Integration Modes (`AIIntegrationMode.swift`)
 
 Integra provides three user-selectable modes in Settings:
 1. **`MCP-Only` (Default / Recommended)**: Zero project file pollution — `AGENTS.md` and `CLAUDE.md` are not created. Remote workspaces stay 100% clean while modern AI clients use native MCP tools.
@@ -118,7 +135,8 @@ Integra provides three user-selectable modes in Settings:
 
 ---
 
-## 6. SSH Port Forwarding & AI Tunnels (`SSHTunnelService.swift`)
+## 7. SSH Port Forwarding & AI Tunnels (`SSHTunnelService.swift`)
 
 - **Multiplexed Port Forwarding**: 1-click forwarding for Ollama (`11434`), PostgreSQL (`5432`), Redis (`6379`), and custom APIs.
+- **Password Support via `SSH_ASKPASS`**: Port tunnels establish seamlessly on both key-based and password-based remote infrastructure.
 - **Local Loopback Port Collision Detection**: Uses POSIX `bind()` system calls before starting tunnels to prevent binding conflicts on `127.0.0.1`.
