@@ -30,7 +30,9 @@ Integra implements the open **Model Context Protocol (MCP)** specification via a
       "server": { "type": "string", "description": "Server name, host, IP, or short ID" },
       "command": { "type": "string", "description": "The exact shell command to execute" },
       "working_dir": { "type": "string", "description": "Optional remote working directory" },
-      "sudo": { "type": "boolean", "description": "Set to true if command requires elevated privileges" }
+      "sudo": { "type": "boolean", "description": "Set to true if command requires elevated privileges" },
+      "background": { "type": "boolean", "description": "Set to true for long-running operations (e.g. apt upgrade, docker build). Runs detached via nohup and returns PID & log file path immediately." },
+      "timeout_seconds": { "type": "integer", "description": "Optional timeout in seconds for synchronous command execution (default: 90, max: 600)." }
     }
   },
   {

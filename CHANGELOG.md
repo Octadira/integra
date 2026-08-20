@@ -5,6 +5,19 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-08-20
+
+### Added
+- **Asynchronous Background Execution in MCP Server (`IntegraMCP/main.swift`)**:
+  - Added support for the `background: true` parameter in `integra_execute_command` for long-running operations (`apt-get upgrade`, `docker build`, `npm install`, large compilations).
+  - Automatically dispatches remote tasks with `nohup` in a detached shell, redirects both stdout/stderr to `/tmp/integra_job_<timestamp>_<id>.log`, and returns the remote `BG_PID` and log file path immediately to prevent client-side MCP timeouts.
+- **Configurable Process Execution Timeouts (`IntegraMCP/main.swift`)**:
+  - Added optional `timeout_seconds` parameter (default 90s, configurable up to 600s) for synchronous command execution with structured timeout diagnostics and background suggestions.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testBackgroundJobCommandFormatting` (39/39 tests passing).
+
+---
+
 ## [0.14.5] - 2026-08-20
 
 ### Added

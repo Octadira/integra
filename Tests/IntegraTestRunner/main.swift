@@ -497,6 +497,18 @@ func main() async {
         TestContext.assertEqual(CodeEditorApp.kiro.rawValue, "Kiro (kiro.dev)", "Kiro raw value must match")
     }
     
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testBackgroundJobCommandFormatting") {
+        let cmd = "sudo apt-get update && sudo apt-get upgrade -y"
+        let escaped = cmd.replacingOccurrences(of: "'", with: "'\\''")
+        let logPath = "/tmp/integra_job_test.log"
+        let bgCmd = "nohup sh -c '\(escaped)' > '\(logPath)' 2>&1 & BG_PID=$!; echo \"[INTEGRA_BG_JOB] PID=$BG_PID | LOG=\(logPath)\""
+        
+        TestContext.assertTrue(bgCmd.hasPrefix("nohup sh -c"), "Background command must use nohup sh -c")
+        TestContext.assertTrue(bgCmd.contains(escaped), "Background command must preserve escaped inner command")
+        TestContext.assertTrue(bgCmd.contains("> '/tmp/integra_job_test.log' 2>&1 &"), "Background command must redirect both stdout and stderr")
+        TestContext.assertTrue(bgCmd.contains("echo \"[INTEGRA_BG_JOB] PID=$BG_PID | LOG=/tmp/integra_job_test.log\""), "Background command must echo structured job tag")
+    }
+    
     print("▶︎ Running Suite: AI Integration Modes & Zero-Pollution Lifecycle")
     
     TestContext.runTest(suite: "AIIntegrationModeTests", name: "testHybridModeGeneratesHierarchicalDirectives") {

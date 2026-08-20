@@ -84,6 +84,13 @@ enum AnyCodableValue: Codable {
         return nil
     }
     
+    var intValue: Int? {
+        if case .int(let i) = self { return i }
+        if case .double(let d) = self { return Int(d) }
+        if case .string(let s) = self { return Int(s) }
+        return nil
+    }
+    
     var dictValue: [String: AnyCodableValue]? {
         if case .dict(let d) = self { return d }
         return nil
@@ -94,7 +101,7 @@ enum AnyCodableValue: Codable {
 
 @main
 struct IntegraMCPServer {
-    static let serverVersion = "0.10.0"
+    static let serverVersion = "0.15.0"
     
     static func main() async {
         let fileHandle = FileHandle.standardInput
@@ -206,6 +213,14 @@ struct IntegraMCPServer {
                             "sudo": [
                                 "type": "boolean",
                                 "description": "Set to true if command requires administrator / superuser privileges."
+                            ],
+                            "background": [
+                                "type": "boolean",
+                                "description": "Set to true for long-running operations (e.g. apt upgrade, docker build, heavy compilations). Runs the command detached in the background on the remote server using nohup, returning the PID and log path immediately."
+                            ],
+                            "timeout_seconds": [
+                                "type": "integer",
+                                "description": "Optional timeout in seconds for synchronous command execution (default: 90, max: 600)."
                             ]
                         ],
                         "required": ["server", "command"]
@@ -315,6 +330,8 @@ struct IntegraMCPServer {
             
             let targetSubpath = arguments["working_dir"]?.stringValue
             let explicitSudo = arguments["sudo"]?.boolValue ?? false
+            let isBackground = arguments["background"]?.boolValue ?? false
+            let timeoutSeconds = arguments["timeout_seconds"]?.intValue ?? (arguments["timeout"]?.intValue ?? 90)
             let startsWithSudo = command.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("sudo ")
             let requiresSudo = explicitSudo || startsWithSudo
             
@@ -361,7 +378,9 @@ struct IntegraMCPServer {
                 command: command,
                 workingDir: targetSubpath,
                 requiresSudo: requiresSudo,
-                sudoPassword: sudoPasswordToInject
+                sudoPassword: sudoPasswordToInject,
+                isBackground: isBackground,
+                timeoutSeconds: timeoutSeconds
             )
             
             let result: [String: Any] = [
@@ -417,7 +436,9 @@ struct IntegraMCPServer {
         command: String,
         workingDir: String?,
         requiresSudo: Bool = false,
-        sudoPassword: String? = nil
+        sudoPassword: String? = nil,
+        isBackground: Bool = false,
+        timeoutSeconds: Int = 90
     ) async -> String {
         let socketPath = profile.controlSocketPath
         let destination = "\(profile.effectiveUser)@\(profile.host)"
@@ -447,6 +468,14 @@ struct IntegraMCPServer {
             if let subpath = workingDir, !subpath.isEmpty {
                 let escaped = subpath.replacingOccurrences(of: "'", with: "'\\''")
                 remoteCmd = "if [ -d '\(escaped)' ]; then cd '\(escaped)'; fi && \(remoteCmd)"
+            }
+            
+            if isBackground {
+                let escapedForBg = remoteCmd.replacingOccurrences(of: "'", with: "'\\''")
+                let timestamp = Int(Date().timeIntervalSince1970)
+                let randomSuffix = Int.random(in: 1000...9999)
+                let logFile = "/tmp/integra_job_\(timestamp)_\(randomSuffix).log"
+                remoteCmd = "nohup sh -c '\(escapedForBg)' > '\(logFile)' 2>&1 & BG_PID=$!; echo \"[INTEGRA_BG_JOB] PID=$BG_PID | LOG=\(logFile)\""
             }
             
             var args: [String] = []
@@ -522,15 +551,46 @@ struct IntegraMCPServer {
             process.standardOutput = pipe
             process.standardError = errPipe
             
+            let effectiveTimeout = max(5, min(600, timeoutSeconds))
+            var didTimeout = false
+            
+            let timeoutTask = Task {
+                try? await Task.sleep(nanoseconds: UInt64(effectiveTimeout) * 1_000_000_000)
+                if process.isRunning {
+                    didTimeout = true
+                    process.terminate()
+                }
+            }
+            
             do {
                 try process.run()
                 process.waitUntilExit()
+                timeoutTask.cancel()
+                
+                if didTimeout {
+                    return "Command timed out after \(effectiveTimeout) seconds on remote host \(profile.name).\n\nTip: For long-running operations (e.g. 'apt-get upgrade', 'docker build', compilation, or large downloads), rerun with 'background: true' to run detached and monitor output via log files."
+                }
                 
                 let outData = pipe.fileHandleForReading.readDataToEndOfFile()
                 let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
                 
                 let stdout = String(data: outData, encoding: .utf8) ?? ""
                 let stderr = String(data: errData, encoding: .utf8) ?? ""
+                
+                if isBackground && stdout.contains("[INTEGRA_BG_JOB]") {
+                    if let line = stdout.components(separatedBy: .newlines).first(where: { $0.contains("[INTEGRA_BG_JOB]") }) {
+                        let parts = line.replacingOccurrences(of: "[INTEGRA_BG_JOB]", with: "").trimmingCharacters(in: .whitespaces)
+                        return """
+                        Background Job Dispatched Successfully on \(profile.name)
+                        \(parts)
+                        
+                        To inspect live output:
+                          integra_execute_command(server: "\(profile.name)", command: "tail -n 30 <LOG>")
+                        To check if process is still running:
+                          integra_execute_command(server: "\(profile.name)", command: "ps -p <PID>")
+                        """
+                    }
+                }
                 
                 if process.terminationStatus != 0 && stdout.isEmpty {
                     return "Exit Code \(process.terminationStatus):\n\(stderr)"
