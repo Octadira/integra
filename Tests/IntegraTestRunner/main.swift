@@ -489,6 +489,13 @@ func main() async {
         TestContext.assertEqual(kiroClient.icon, "cpu", "Kiro icon should be cpu")
     }
     
+    TestContext.runTest(suite: "MCPConfigServiceTests", name: "testPiDevMCPConfigurationPaths") {
+        let piClient = SupportedAIClient.piDev
+        TestContext.assertTrue(piClient.primaryConfigPath.contains(".pi/agent/mcp.json"), "Pi primary config path must point to ~/.pi/agent/mcp.json")
+        TestContext.assertTrue(piClient.secondaryConfigPaths.contains { $0.contains(".config/mcp/mcp.json") }, "Pi secondary paths must contain ~/.config/mcp/mcp.json")
+        TestContext.assertTrue(piClient.secondaryConfigPaths.contains { $0.contains(".pi/mcp.json") }, "Pi secondary paths must contain ~/.pi/mcp.json")
+    }
+    
     TestContext.runTest(suite: "CodeEditorAppTests", name: "testCodeEditorAppEnumIncludesWindsurfAndKiro") {
         let allEditors = CodeEditorApp.allCases
         TestContext.assertTrue(allEditors.contains(.windsurf), "CodeEditorApp must contain .windsurf")

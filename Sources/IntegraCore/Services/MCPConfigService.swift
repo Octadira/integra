@@ -66,7 +66,7 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
         case .continueDev:
             return "\(home)/.continue/config.json"
         case .piDev:
-            return "\(home)/.pi/mcp.json"
+            return "\(home)/.pi/agent/mcp.json"
         case .zed:
             return "\(home)/.config/zed/settings.json"
         case .codex:
@@ -89,6 +89,12 @@ public enum SupportedAIClient: String, CaseIterable, Identifiable {
             return ["\(home)/Library/Application Support/Cursor/User/globalStorage/cursor.mcp/mcp.json"]
         case .kiro:
             return ["\(home)/.kiro/mcp.json"]
+        case .piDev:
+            return [
+                "\(home)/.config/mcp/mcp.json",
+                "\(home)/.pi/mcp.json",
+                "\(home)/.agents/mcp.json"
+            ]
         default:
             return []
         }

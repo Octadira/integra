@@ -67,7 +67,7 @@ Integra automatically discovers, creates, and non-destructively merges the `inte
 | **Cline** | `Code/User/globalStorage/saoudrizwan.claude-dev/...` | `mcpServers.integra` |
 | **Roo Code** | `Code/User/globalStorage/rooveterinaryinc.roo-cline/...` | `mcpServers.integra` |
 | **Continue.dev** | `~/.continue/config.json` | `mcpServers.integra` |
-| **Pi.dev / Pi CLI** | `~/.pi/mcp.json` | `mcpServers.integra` |
+| **Pi.dev / Pi CLI** | `~/.pi/agent/mcp.json` & `~/.config/mcp/mcp.json` | `mcpServers.integra` |
 | **Zed Editor** | `~/.config/zed/settings.json` | `context_servers.integra` |
 
 ### Non-Destructive Atomic JSON Merging
