@@ -5,6 +5,23 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.5] - 2026-08-20
+
+### Added
+- **Automatic SSH Private Key Permission Sanitizer (`SSHProfile.swift`, `SSHFSService.swift`, `RemoteExecService.swift`, `SSHTunnelService.swift`, `RemoteBrowserService.swift`)**:
+  - Automatically verifies and sanitizes SSH private key permissions (`.pem`, `.id_rsa`, `.id_ed25519`) to `0600` (`-rw-------`) before initiating SSHFS mount, OpenSSH ControlMaster sockets, or port tunnels.
+  - Prevents cryptic OpenSSH rejection errors (`WARNING: UNPROTECTED PRIVATE KEY FILE! Permissions 0644 are too open`).
+
+### Fixed
+- **Root User Administrative Sudo Authorization Flow (`SudoAuthManager.swift`, `IntegraMCP/main.swift`)**:
+  - Optimized command execution for SSH profiles connected under the `root` account (`effectiveUser == "root"`).
+  - Bypassed redundant sudo password prompts for `root` (UID 0), enforcing swift biometric/dialog approval without demanding password input in a dialog.
+  - Stripped unnecessary `sudo` wrapper execution on remote Linux hosts when connected as `root`.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testIdentityFilePermissionSanitization` and `testRootUserSudoAuthAutoGrantsWithoutPassword` (38/38 tests passing).
+
+---
+
 ## [0.14.4] - 2026-08-20
 
 ### Fixed

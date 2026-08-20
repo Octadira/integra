@@ -66,6 +66,9 @@ public class RemoteBrowserService {
                 args.append(contentsOf: ["-o", "BatchMode=yes"])
                 let keyPath = (identityFile as NSString).expandingTildeInPath
                 if !keyPath.isEmpty {
+                    if FileManager.default.fileExists(atPath: keyPath) {
+                        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: keyPath)
+                    }
                     args.append(contentsOf: ["-i", keyPath])
                 }
             case .password:

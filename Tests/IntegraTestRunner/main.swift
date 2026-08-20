@@ -595,6 +595,34 @@ func main() async {
         _ = KeychainService.shared.deleteSudoPassword(for: profileId)
     }
     
+    TestContext.runTest(suite: "SudoAuthPolicyTests", name: "testIdentityFilePermissionSanitization") {
+        let tempKeyPath = NSTemporaryDirectory() + "test_key_\(UUID().uuidString).pem"
+        let dummyContent = "-----BEGIN RSA PRIVATE KEY-----\ndummy\n-----END RSA PRIVATE KEY-----"
+        try? dummyContent.write(toFile: tempKeyPath, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: tempKeyPath)
+        defer { try? FileManager.default.removeItem(atPath: tempKeyPath) }
+        
+        var profile = SSHProfile(name: "KeyServer", host: "1.2.3.4", port: 22, user: "ubuntu", authMethod: .key)
+        profile.identityFile = tempKeyPath
+        
+        let initialAttrs = try? FileManager.default.attributesOfItem(atPath: tempKeyPath)
+        let initialPerms = (initialAttrs?[.posixPermissions] as? NSNumber)?.intValue
+        TestContext.assertEqual(initialPerms, 0o644, "Initial permission must be 0644")
+        
+        profile.sanitizeIdentityFilePermissionsIfNeeded()
+        
+        let sanitizedAttrs = try? FileManager.default.attributesOfItem(atPath: tempKeyPath)
+        let sanitizedPerms = (sanitizedAttrs?[.posixPermissions] as? NSNumber)?.intValue
+        TestContext.assertEqual(sanitizedPerms, 0o600, "Sanitized permission must be 0600")
+    }
+    
+    await TestContext.runAsyncTest(suite: "SudoAuthPolicyTests", name: "testRootUserSudoAuthAutoGrantsWithoutPassword") {
+        let rootProfile = SSHProfile(name: "RootServer", host: "5.6.7.8", port: 22, user: "root", sudoAuthPolicy: .autoApprove)
+        let authResult = await SudoAuthManager.shared.authorizeAndGetPassword(profile: rootProfile, command: "reboot")
+        TestContext.assertTrue(authResult.isGranted, "Root user with autoApprove must be granted")
+        TestContext.assertNil(authResult.sudoPassword, "Root user should not require sudo password")
+    }
+    
     // ---------------------------------------------------------
     // 10. Update Checker & SemVer Comparison Tests
     // ---------------------------------------------------------

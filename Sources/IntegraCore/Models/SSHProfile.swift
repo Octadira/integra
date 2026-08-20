@@ -153,4 +153,19 @@ public struct SSHProfile: Identifiable, Codable, Equatable, Sendable {
         let socketDir = "\(NSHomeDirectory())/.ssh/integra/sock"
         return "\(socketDir)/i_\(shortId).mount"
     }
+    
+    public func sanitizeIdentityFilePermissionsIfNeeded() {
+        guard authMethod == .key else { return }
+        let keyPath = (identityFile as NSString).expandingTildeInPath
+        guard !keyPath.isEmpty, FileManager.default.fileExists(atPath: keyPath) else { return }
+        
+        do {
+            let attrs = try FileManager.default.attributesOfItem(atPath: keyPath)
+            if let posix = attrs[.posixPermissions] as? NSNumber, posix.intValue != 0o600 {
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: keyPath)
+            }
+        } catch {
+            // Ignore if file cannot be modified (e.g. read-only volume or permission error)
+        }
+    }
 }

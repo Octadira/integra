@@ -433,7 +433,9 @@ struct IntegraMCPServer {
                     innerCmd = String(innerCmd.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
                 }
                 
-                if let pass = sudoPassword, !pass.isEmpty {
+                if profile.effectiveUser.lowercased() == "root" {
+                    remoteCmd = innerCmd
+                } else if let pass = sudoPassword, !pass.isEmpty {
                     let escapedPass = pass.replacingOccurrences(of: "'", with: "'\\''")
                     let escapedInner = innerCmd.replacingOccurrences(of: "'", with: "'\\''")
                     remoteCmd = "printf '%s\\n' '\(escapedPass)' | sudo -S -p '' sh -c '\(escapedInner)'"

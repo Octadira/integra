@@ -60,6 +60,8 @@ public class RemoteExecService: ObservableObject {
         isStartingSocket[profile.id] = true
         defer { isStartingSocket[profile.id] = false }
         
+        profile.sanitizeIdentityFilePermissionsIfNeeded()
+        
         var args: [String] = [
             "-N", // No remote command
             "-f", // Fork into background

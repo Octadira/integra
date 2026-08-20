@@ -105,6 +105,7 @@ public class SSHFSService: ObservableObject {
         }
         
         let targetPath = (profile.defaultMountPath as NSString).standardizingPath
+        profile.sanitizeIdentityFilePermissionsIfNeeded()
         
         if !FileManager.default.fileExists(atPath: targetPath) {
             try FileManager.default.createDirectory(atPath: targetPath, withIntermediateDirectories: true)

@@ -56,38 +56,50 @@ public final class SudoAuthManager: @unchecked Sendable {
     }
     
     public func authorizeAndGetPassword(profile: SSHProfile, command: String) async -> SudoAuthResult {
-        let existingPassword = KeychainService.shared.getEffectiveSudoPassword(for: profile)
+        let isRootUser = profile.effectiveUser.lowercased() == "root"
+        let existingPassword = isRootUser ? nil : KeychainService.shared.getEffectiveSudoPassword(for: profile)
         
         switch profile.sudoAuthPolicy {
         case .autoApprove:
+            if isRootUser {
+                recordAuthorization(for: profile.id)
+                return SudoAuthResult(isGranted: true, sudoPassword: nil)
+            }
             if let pass = existingPassword, !pass.isEmpty {
                 recordAuthorization(for: profile.id)
                 return SudoAuthResult(isGranted: true, sudoPassword: pass)
             }
             // If no password in Keychain, prompt JIT
-            return await promptForSudo(profile: profile, command: command, savedPassword: nil)
+            return await promptForSudo(profile: profile, command: command, savedPassword: nil, isRootUser: isRootUser)
             
         case .sessionCache:
-            if isSessionValid(for: profile.id), let pass = existingPassword, !pass.isEmpty {
-                return SudoAuthResult(isGranted: true, sudoPassword: pass)
+            if isSessionValid(for: profile.id) {
+                if isRootUser {
+                    return SudoAuthResult(isGranted: true, sudoPassword: nil)
+                }
+                if let pass = existingPassword, !pass.isEmpty {
+                    return SudoAuthResult(isGranted: true, sudoPassword: pass)
+                }
             }
-            return await promptForSudo(profile: profile, command: command, savedPassword: existingPassword)
+            return await promptForSudo(profile: profile, command: command, savedPassword: existingPassword, isRootUser: isRootUser)
             
         case .touchIDOrPrompt:
-            return await promptForSudo(profile: profile, command: command, savedPassword: existingPassword)
+            return await promptForSudo(profile: profile, command: command, savedPassword: existingPassword, isRootUser: isRootUser)
         }
     }
     
-    private func promptForSudo(profile: SSHProfile, command: String, savedPassword: String?) async -> SudoAuthResult {
+    private func promptForSudo(profile: SSHProfile, command: String, savedPassword: String?, isRootUser: Bool = false) async -> SudoAuthResult {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                // If password exists, try Touch ID / Biometrics first if available
-                if let pass = savedPassword, !pass.isEmpty {
+                // If password exists or user is root, try Touch ID / Biometrics first if available
+                if isRootUser || (savedPassword != nil && !savedPassword!.isEmpty) {
                     let laContext = LAContext()
                     var error: NSError?
                     
                     if laContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-                        let reason = "Authorize AI Agent sudo execution on \(profile.name)"
+                        let reason = isRootUser ?
+                            "Authorize AI Agent administrative execution on \(profile.name) (root)" :
+                            "Authorize AI Agent sudo execution on \(profile.name)"
                         let semaphore = DispatchSemaphore(value: 0)
                         var biometricSuccess = false
                         
@@ -99,7 +111,7 @@ public final class SudoAuthManager: @unchecked Sendable {
                         
                         if biometricSuccess {
                             self.recordAuthorization(for: profile.id)
-                            continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: pass))
+                            continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: savedPassword))
                             return
                         }
                     }
@@ -110,7 +122,38 @@ public final class SudoAuthManager: @unchecked Sendable {
                 let escapedCommand = command.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\\", with: "\\\\")
                 let escapedServer = serverDesc.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\\", with: "\\\\")
                 
-                if let pass = savedPassword, !pass.isEmpty {
+                if isRootUser {
+                    // For root user: only authorization confirmation is needed (no password input needed)
+                    let script = """
+                    tell application "System Events"
+                        activate
+                        set res to display dialog "AI Assistant requested administrative command on root account:\n\(escapedServer)\n\nCommand:\n\(escapedCommand)\n\nAuthorize execution?" with title "Integra — Root Authorization" buttons {"Cancel", "Authorize"} default button "Authorize" with icon caution
+                        return button returned of res
+                    end tell
+                    """
+                    
+                    let process = Process()
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                    process.arguments = ["-e", script]
+                    let pipe = Pipe()
+                    process.standardOutput = pipe
+                    
+                    do {
+                        try process.run()
+                        process.waitUntilExit()
+                        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                        let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        
+                        if process.terminationStatus == 0 && output == "Authorize" {
+                            self.recordAuthorization(for: profile.id)
+                            continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: nil))
+                        } else {
+                            continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Execution cancelled by user."))
+                        }
+                    } catch {
+                        continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Failed to present authorization dialog: \(error.localizedDescription)"))
+                    }
+                } else if let pass = savedPassword, !pass.isEmpty {
                     let script = """
                     tell application "System Events"
                         activate

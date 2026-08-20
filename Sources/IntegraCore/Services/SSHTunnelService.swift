@@ -66,6 +66,8 @@ public class SSHTunnelService: ObservableObject {
             }
         }
         
+        profile.sanitizeIdentityFilePermissionsIfNeeded()
+        
         var args: [String] = [
             "-N", // Do not execute a remote command (port forwarding only)
             "-p", "\(profile.port)",
