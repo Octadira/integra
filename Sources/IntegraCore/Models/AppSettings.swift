@@ -26,6 +26,8 @@ public enum CodeEditorApp: String, CaseIterable, Identifiable, Codable {
     case codex = "Codex (OpenAI)"
     case windsurf = "Windsurf"
     case kiro = "Kiro (kiro.dev)"
+    case zed = "Zed"
+    case openCode = "OpenCode"
     
     public var id: String { self.rawValue }
     
@@ -37,6 +39,8 @@ public enum CodeEditorApp: String, CaseIterable, Identifiable, Codable {
         case .codex: return "sparkles"
         case .windsurf: return "wind"
         case .kiro: return "cpu"
+        case .zed: return "bolt"
+        case .openCode: return "terminal"
         }
     }
 }

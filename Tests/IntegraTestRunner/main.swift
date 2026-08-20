@@ -493,8 +493,14 @@ func main() async {
         let allEditors = CodeEditorApp.allCases
         TestContext.assertTrue(allEditors.contains(.windsurf), "CodeEditorApp must contain .windsurf")
         TestContext.assertTrue(allEditors.contains(.kiro), "CodeEditorApp must contain .kiro")
+        TestContext.assertTrue(allEditors.contains(.zed), "CodeEditorApp must contain .zed")
+        TestContext.assertTrue(allEditors.contains(.openCode), "CodeEditorApp must contain .openCode")
+        TestContext.assertTrue(allEditors.contains(.antigravity), "CodeEditorApp must contain .antigravity")
         TestContext.assertEqual(CodeEditorApp.windsurf.rawValue, "Windsurf", "Windsurf raw value must match")
         TestContext.assertEqual(CodeEditorApp.kiro.rawValue, "Kiro (kiro.dev)", "Kiro raw value must match")
+        TestContext.assertEqual(CodeEditorApp.zed.rawValue, "Zed", "Zed raw value must match")
+        TestContext.assertEqual(CodeEditorApp.openCode.rawValue, "OpenCode", "OpenCode raw value must match")
+        TestContext.assertEqual(CodeEditorApp.antigravity.rawValue, "Antigravity 2.0 IDE", "Antigravity raw value must match")
     }
     
     TestContext.runTest(suite: "MCPConfigServiceTests", name: "testBackgroundJobCommandFormatting") {

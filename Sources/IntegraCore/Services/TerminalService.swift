@@ -61,27 +61,34 @@ public class TerminalService {
         case .cursor:
             task.arguments = ["-a", "Cursor", expanded]
         case .antigravity:
-            // Check for Antigravity, Antigravity IDE, Google Antigravity
-            let candidateNames = ["Antigravity", "Antigravity IDE", "Google Antigravity", "Antigravity 2.0"]
-            var opened = false
-            for name in candidateNames {
-                if NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.antigravity") != nil ||
-                   FileManager.default.fileExists(atPath: "/Applications/\(name).app") {
-                    task.arguments = ["-a", name, expanded]
-                    opened = true
-                    break
-                }
-            }
-            if !opened {
-                // Check if CLI 'agy' or 'antigravity' exists
-                if FileManager.default.fileExists(atPath: "/usr/local/bin/agy") {
-                    let cliTask = Process()
-                    cliTask.executableURL = URL(fileURLWithPath: "/usr/local/bin/agy")
-                    cliTask.arguments = [expanded]
-                    try? cliTask.run()
-                    return
-                }
+            // Check for Antigravity IDE (com.google.antigravity-ide / Antigravity IDE.app) first
+            if NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.antigravity-ide") != nil {
+                task.arguments = ["-b", "com.google.antigravity-ide", expanded]
+            } else if FileManager.default.fileExists(atPath: "/Applications/Antigravity IDE.app") {
+                task.arguments = ["-a", "Antigravity IDE", expanded]
+            } else if FileManager.default.fileExists(atPath: "\(NSHomeDirectory())/Applications/Antigravity IDE.app") {
+                task.arguments = ["-a", "\(NSHomeDirectory())/Applications/Antigravity IDE.app", expanded]
+            } else if NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.antigravity") != nil {
+                task.arguments = ["-b", "com.google.antigravity", expanded]
+            } else if FileManager.default.fileExists(atPath: "/Applications/Antigravity.app") {
                 task.arguments = ["-a", "Antigravity", expanded]
+            } else {
+                let candidateCLIs = [
+                    "\(NSHomeDirectory())/.local/bin/agy",
+                    "/usr/local/bin/agy",
+                    "/opt/homebrew/bin/agy",
+                    "\(NSHomeDirectory())/.cargo/bin/agy"
+                ]
+                for cliPath in candidateCLIs {
+                    if FileManager.default.isExecutableFile(atPath: cliPath) {
+                        let cliTask = Process()
+                        cliTask.executableURL = URL(fileURLWithPath: cliPath)
+                        cliTask.arguments = [expanded]
+                        try? cliTask.run()
+                        return
+                    }
+                }
+                task.arguments = ["-a", "Antigravity IDE", expanded]
             }
         case .codex:
             let candidateCLIs = [
@@ -146,6 +153,39 @@ public class TerminalService {
                 }
             }
             task.arguments = ["-a", "Kiro", expanded]
+        case .zed:
+            let candidateCLIs = [
+                "/usr/local/bin/zed",
+                "/opt/homebrew/bin/zed",
+                "\(NSHomeDirectory())/.local/bin/zed"
+            ]
+            for cliPath in candidateCLIs {
+                if FileManager.default.isExecutableFile(atPath: cliPath) {
+                    let cliTask = Process()
+                    cliTask.executableURL = URL(fileURLWithPath: cliPath)
+                    cliTask.arguments = [expanded]
+                    try? cliTask.run()
+                    return
+                }
+            }
+            task.arguments = ["-a", "Zed", expanded]
+        case .openCode:
+            let candidateCLIs = [
+                "/usr/local/bin/opencode",
+                "/opt/homebrew/bin/opencode",
+                "\(NSHomeDirectory())/.local/bin/opencode",
+                "\(NSHomeDirectory())/.cargo/bin/opencode"
+            ]
+            for cliPath in candidateCLIs {
+                if FileManager.default.isExecutableFile(atPath: cliPath) {
+                    let cliTask = Process()
+                    cliTask.executableURL = URL(fileURLWithPath: cliPath)
+                    cliTask.arguments = [expanded]
+                    try? cliTask.run()
+                    return
+                }
+            }
+            task.arguments = ["-a", "OpenCode", expanded]
         }
         
         try? task.run()

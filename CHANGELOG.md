@@ -5,6 +5,21 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-08-20
+
+### Fixed
+- **Antigravity 2.0 IDE Launcher Resolution (`TerminalService.swift`)**:
+  - Corrected bundle resolution when launching mounted workspaces in **Antigravity 2.0 IDE**, prioritizing the workspace IDE bundle (`com.google.antigravity-ide` / `Antigravity IDE.app`) over the standalone chat application (`Antigravity.app`).
+  - Added CLI dispatch fallback to `~/.local/bin/agy` and `/usr/local/bin/agy`.
+
+### Added
+- **Expanded Modern AI & Code Editor Support (`AppSettings.swift`, `TerminalService.swift`, `SettingsView.swift`)**:
+  - Added **Zed** and **OpenCode** directly to the preferred code editor launcher list.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Expanded `testCodeEditorAppEnumIncludesWindsurfAndKiro` to cover Zed, OpenCode, and Antigravity IDE (39/39 tests passing).
+
+---
+
 ## [0.15.0] - 2026-08-20
 
 ### Added
