@@ -283,6 +283,27 @@ func main() async {
         TestContext.assertNotNil(isAvailable)
     }
     
+    TestContext.runTest(suite: "SSHTunnelTests", name: "testPasswordAuthAskPassScriptGeneration") {
+        let dummyPass = "SecureP@ssw0rd$123!'"
+        let askpassDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("integra_test_askpass_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: askpassDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: askpassDir) }
+        
+        let tempScript = askpassDir.appendingPathComponent("askpass_test.sh")
+        let scriptContent = """
+        #!/bin/sh
+        /bin/cat << 'INTEGRA_ASKPASS_EOF'
+        \(dummyPass)
+        INTEGRA_ASKPASS_EOF
+        """
+        try? scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempScript.path)
+        
+        TestContext.assertTrue(FileManager.default.fileExists(atPath: tempScript.path), "AskPass script must exist on disk")
+        let readBack = try? String(contentsOf: tempScript, encoding: .utf8)
+        TestContext.assertTrue(readBack?.contains(dummyPass) == true, "AskPass script must contain password without shell expansion")
+    }
+    
     print("")
     
     // ---------------------------------------------------------

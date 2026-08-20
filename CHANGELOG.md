@@ -5,6 +5,18 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.4] - 2026-08-20
+
+### Fixed
+- **Password-Authenticated Server ControlMaster Socket & MCP Execution (`RemoteExecService.swift`, `SSHTunnelService.swift`, `main.swift`)**:
+  - Implemented secure `SSH_ASKPASS` credential injection for password-authenticated SSH profiles when establishing persistent OpenSSH ControlMaster multiplexing sockets (`~/.ssh/integra/sock/`).
+  - Added `SSH_ASKPASS` support to `SSHTunnelService` for port forwarding on password-only servers.
+  - Updated `integra-mcp` (`integra_execute_command`) to automatically handle password authentication fallback via `SSH_ASKPASS` when sockets need initialization.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testPasswordAuthAskPassScriptGeneration` (36/36 tests passing).
+
+---
+
 ## [0.14.3] - 2026-08-20
 
 ### Fixed

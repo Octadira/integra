@@ -71,30 +71,64 @@ public class RemoteExecService: ObservableObject {
             "-o", "ServerAliveCountMax=6",
             "-o", "TCPKeepAlive=yes",
             "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "ConnectTimeout=10",
-            "-o", "BatchMode=yes"
+            "-o", "ConnectTimeout=10"
         ]
+        
+        var askPassScript: URL? = nil
+        var env: [String: String] = ProcessInfo.processInfo.environment
         
         switch profile.authMethod {
         case .none:
-            break
+            args.append(contentsOf: ["-o", "BatchMode=yes"])
         case .key:
+            args.append(contentsOf: ["-o", "BatchMode=yes"])
             let keyPath = (profile.identityFile as NSString).expandingTildeInPath
             if !keyPath.isEmpty {
                 args.append(contentsOf: ["-i", keyPath])
             }
         case .password:
-            break
+            let savedPassword = KeychainService.shared.getPassword(account: profile.id.uuidString)
+            if let pass = savedPassword, !pass.isEmpty {
+                let askpassDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".ssh/integra/askpass", isDirectory: true)
+                try? FileManager.default.createDirectory(at: askpassDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                
+                let tempScript = askpassDir.appendingPathComponent("askpass_\(UUID().uuidString).sh")
+                let scriptContent = """
+                #!/bin/sh
+                /bin/cat << 'INTEGRA_ASKPASS_EOF'
+                \(pass)
+                INTEGRA_ASKPASS_EOF
+                """
+                try? scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempScript.path)
+                askPassScript = tempScript
+                
+                env["SSH_ASKPASS"] = tempScript.path
+                env["SSH_ASKPASS_REQUIRE"] = "force"
+                env["DISPLAY"] = ":0"
+            } else {
+                args.append(contentsOf: ["-o", "BatchMode=yes"])
+            }
         }
         
         let userSpec = profile.effectiveUser
         let destination = "\(userSpec)@\(profile.host)"
         args.append(destination)
         
+        let finalAskPass = askPassScript
+        let finalEnv = env
+        
         try await Task.detached(priority: .userInitiated) {
+            defer {
+                if let scriptURL = finalAskPass {
+                    try? FileManager.default.removeItem(at: scriptURL)
+                }
+            }
+            
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
             process.arguments = args
+            process.environment = finalEnv
             
             let errPipe = Pipe()
             process.standardError = errPipe
