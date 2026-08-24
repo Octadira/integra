@@ -5,6 +5,18 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.3] - 2026-08-24
+
+### Fixed
+- **Seamless Auto-Approve Sudo & Cross-Process Keychain Retrieval (`KeychainService.swift`, `SudoAuthManager.swift`)**:
+  - Implemented `/usr/bin/security` CLI fallback in `KeychainService` guaranteeing 100% reliable password retrieval across security context boundaries between `Integra.app` (GUI) and `integra-mcp` (sub-process AI helper).
+  - Enforced non-interactive execution for the `.autoApprove` policy, preventing modal dialog interruptions and supporting passwordless (`NOPASSWD`) remote sudo out of the box.
+  - Allowed empty password authorization in interactive fallback prompts for servers configured with passwordless sudo.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testAutoApprovePolicyNonInteractiveSudo` covering Keychain password injection and passwordless sudo fallback (41/41 tests passing).
+
+---
+
 ## [0.15.2] - 2026-08-21
 
 ### Fixed

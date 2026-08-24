@@ -648,6 +648,23 @@ func main() async {
         TestContext.assertNil(authResult.sudoPassword, "Root user should not require sudo password")
     }
     
+    await TestContext.runAsyncTest(suite: "SudoAuthPolicyTests", name: "testAutoApprovePolicyNonInteractiveSudo") {
+        let profileId = UUID()
+        let profile = SSHProfile(id: profileId, name: "AutoApproveServer", host: "1.1.1.1", port: 22, user: "adrian", sudoAuthPolicy: .autoApprove)
+        
+        // Scenario 1: Password in Keychain
+        _ = KeychainService.shared.saveSudoPassword(for: profileId, password: "SecretSudoPassword")
+        let authResult1 = await SudoAuthManager.shared.authorizeAndGetPassword(profile: profile, command: "whoami")
+        TestContext.assertTrue(authResult1.isGranted, "AutoApprove must be granted")
+        TestContext.assertEqual(authResult1.sudoPassword, "SecretSudoPassword", "AutoApprove must inject Keychain password")
+        
+        // Scenario 2: Passwordless (no password in Keychain)
+        _ = KeychainService.shared.deleteSudoPassword(for: profileId)
+        let authResult2 = await SudoAuthManager.shared.authorizeAndGetPassword(profile: profile, command: "whoami")
+        TestContext.assertTrue(authResult2.isGranted, "AutoApprove without Keychain password must grant non-interactively for passwordless sudo")
+        TestContext.assertNil(authResult2.sudoPassword, "Passwordless autoApprove should have nil password")
+    }
+    
     // ---------------------------------------------------------
     // 10. Update Checker & SemVer Comparison Tests
     // ---------------------------------------------------------

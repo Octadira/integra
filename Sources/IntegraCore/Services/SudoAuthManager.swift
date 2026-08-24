@@ -61,16 +61,15 @@ public final class SudoAuthManager: @unchecked Sendable {
         
         switch profile.sudoAuthPolicy {
         case .autoApprove:
+            recordAuthorization(for: profile.id)
             if isRootUser {
-                recordAuthorization(for: profile.id)
                 return SudoAuthResult(isGranted: true, sudoPassword: nil)
             }
             if let pass = existingPassword, !pass.isEmpty {
-                recordAuthorization(for: profile.id)
                 return SudoAuthResult(isGranted: true, sudoPassword: pass)
             }
-            // If no password in Keychain, prompt JIT
-            return await promptForSudo(profile: profile, command: command, savedPassword: nil, isRootUser: isRootUser)
+            // Auto-Approve policy guarantees non-interactive execution (uses passwordless sudo if no password stored)
+            return SudoAuthResult(isGranted: true, sudoPassword: nil)
             
         case .sessionCache:
             if isSessionValid(for: profile.id) {
@@ -110,7 +109,7 @@ public final class SudoAuthManager: @unchecked Sendable {
                         semaphore.wait()
                         
                         if biometricSuccess {
-                            self.recordAuthorization(for: profile.id)
+                            SudoAuthManager.shared.recordAuthorization(for: profile.id)
                             continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: savedPassword))
                             return
                         }
@@ -145,7 +144,7 @@ public final class SudoAuthManager: @unchecked Sendable {
                         let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                         
                         if process.terminationStatus == 0 && output == "Authorize" {
-                            self.recordAuthorization(for: profile.id)
+                            SudoAuthManager.shared.recordAuthorization(for: profile.id)
                             continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: nil))
                         } else {
                             continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Execution cancelled by user."))
@@ -175,7 +174,7 @@ public final class SudoAuthManager: @unchecked Sendable {
                         let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                         
                         if process.terminationStatus == 0 && output == "Authorize" {
-                            self.recordAuthorization(for: profile.id)
+                            SudoAuthManager.shared.recordAuthorization(for: profile.id)
                             continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: pass))
                         } else {
                             continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Execution cancelled by user."))
@@ -207,14 +206,23 @@ public final class SudoAuthManager: @unchecked Sendable {
                         
                         if process.terminationStatus == 0 {
                             let parts = output.components(separatedBy: ":::")
-                            if let enteredPassword = parts.first, !enteredPassword.isEmpty {
-                                _ = KeychainService.shared.saveSudoPassword(for: profile.id, password: enteredPassword)
-                                self.recordAuthorization(for: profile.id)
-                                continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: enteredPassword))
+                            let enteredPassword = parts.first ?? ""
+                            let button = parts.count > 1 ? parts[1] : ""
+                            
+                            if button == "Authorize & Save" || button == "Authorize" {
+                                if !enteredPassword.isEmpty {
+                                    _ = KeychainService.shared.saveSudoPassword(for: profile.id, password: enteredPassword)
+                                    SudoAuthManager.shared.recordAuthorization(for: profile.id)
+                                    continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: enteredPassword))
+                                } else {
+                                    // Empty password authorization (for passwordless / NOPASSWD servers)
+                                    SudoAuthManager.shared.recordAuthorization(for: profile.id)
+                                    continuation.resume(returning: SudoAuthResult(isGranted: true, sudoPassword: nil))
+                                }
                                 return
                             }
                         }
-                        continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Execution cancelled or empty password provided."))
+                        continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Execution cancelled by user."))
                     } catch {
                         continuation.resume(returning: SudoAuthResult(isGranted: false, errorMessage: "Failed to present password prompt: \(error.localizedDescription)"))
                     }

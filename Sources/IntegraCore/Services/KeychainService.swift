@@ -63,7 +63,36 @@ public class KeychainService {
             return password
         }
         
+        // Resilient fallback for helper tools (integra-mcp) across security sandboxes
+        if let cliPassword = getPasswordViaSecurityCLI(service: serviceName, account: account), !cliPassword.isEmpty {
+            return cliPassword
+        }
+        if let legacyCliPassword = getPasswordViaSecurityCLI(service: legacyServiceName, account: account), !legacyCliPassword.isEmpty {
+            _ = savePassword(account: account, password: legacyCliPassword)
+            return legacyCliPassword
+        }
+        
         return nil
+    }
+    
+    private func getPasswordViaSecurityCLI(service: String, account: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = ["find-generic-password", "-s", service, "-a", account, "-w"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (output?.isEmpty ?? true) ? nil : output
+        } catch {
+            return nil
+        }
     }
     
     public func deletePassword(account: String) -> Bool {
