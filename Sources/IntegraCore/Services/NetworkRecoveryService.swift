@@ -89,8 +89,9 @@ public class NetworkRecoveryService: ObservableObject {
             }
         }
         
-        // Recover any dropped OpenSSH ControlMaster sockets
+        // Recover any dropped OpenSSH ControlMaster sockets and Port Forwarding Tunnels
         RemoteExecService.shared.recoverControlSocketsIfNeeded(store: store)
+        SSHTunnelService.shared.recoverTunnelsIfNeeded(store: store)
     }
     
     private func recoverMountWithBackoff(profile: SSHProfile, sshfsService: SSHFSService, attempt: Int) {
@@ -127,6 +128,11 @@ public class NetworkRecoveryService: ObservableObject {
                 // Reconnect socket for AI bridge on successful mount recovery
                 if AppSettings.shared.enableDeveloperAITools {
                     try? await RemoteExecService.shared.startControlSocket(for: profile)
+                }
+                
+                // Reconnect port tunnels if configured
+                if profile.portTunnels.contains(where: { $0.isEnabled }) {
+                    try? await SSHTunnelService.shared.startTunnels(for: profile)
                 }
             } catch {
                 print("[NetworkRecoveryService] Recovery attempt \(attempt + 1) failed for \(profile.name): \(error.localizedDescription)")

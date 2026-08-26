@@ -5,6 +5,19 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.4] - 2026-08-26
+
+### Fixed
+- **Auto-Healing SSH Port Tunnels & Automatic Mount Lifecycle (`SSHTunnelService.swift`, `NetworkRecoveryService.swift`, `SSHFSService.swift`)**:
+  - Implemented asynchronous `terminationHandler` on SSH tunnel processes, eliminating zombie states in the UI and automatically triggering exponential backoff auto-recovery when a tunnel drops.
+  - Integrated SSH Port Forwarding Tunnels directly into `NetworkRecoveryService`, ensuring that after system sleep/wake or network reconnection, database (DBeaver/Postgres/MySQL) and AI model tunnels (Ollama/vLLM) are automatically restored without manual restart.
+  - Added automatic tunnel start on profile mount in `SSHFSService.mount`, ensuring enabled forwarding rules become immediately active upon connection or login auto-mount.
+  - Ensured `isTunnelRunning` performs a strict live process check (`process.isRunning`) to guarantee 100% UI accuracy.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testTunnelLifecycleAndAutoRecoveryTracking` verifying intended tunnel tracking and user-initiated vs automated lifecycle boundaries (42/42 tests passing).
+
+---
+
 ## [0.15.3] - 2026-08-24
 
 ### Fixed

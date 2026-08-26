@@ -6,7 +6,7 @@ import Combine
 public class UpdateCheckerService: ObservableObject {
     public static let shared = UpdateCheckerService()
     
-    public static let currentVersion: String = "0.15.3"
+    public static let currentVersion: String = "0.15.4"
     
     @Published public var isChecking: Bool = false
     @Published public var updateAvailable: Bool = false

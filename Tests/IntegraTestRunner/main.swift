@@ -304,6 +304,30 @@ func main() async {
         TestContext.assertTrue(readBack?.contains(dummyPass) == true, "AskPass script must contain password without shell expansion")
     }
     
+    TestContext.runTest(suite: "SSHTunnelTests", name: "testTunnelLifecycleAndAutoRecoveryTracking") {
+        let tunnelService = SSHTunnelService.shared
+        let profileId = UUID()
+        var profile = SSHProfile(id: profileId, name: "DatabaseServer", host: "10.0.0.1", port: 22, user: "dbuser")
+        let rule = PortTunnelRule(name: "PostgreSQL", localPort: 5432, remotePort: 5432, isEnabled: true)
+        profile.portTunnels = [rule]
+        
+        // Initial state: not running, not intended
+        TestContext.assertFalse(tunnelService.isTunnelRunning(for: profileId), "Tunnel must not be running initially")
+        TestContext.assertFalse(tunnelService.intendedTunnels.contains(profileId), "Tunnel must not be intended initially")
+        
+        // Simulate intended tunnel registration
+        tunnelService.intendedTunnels.insert(profileId)
+        TestContext.assertTrue(tunnelService.intendedTunnels.contains(profileId), "Tunnel must be registered as intended")
+        
+        // Non-user-initiated stop (e.g. restart / auto-reconnect) preserves intended status
+        tunnelService.stopTunnels(for: profile, isUserInitiated: false)
+        TestContext.assertTrue(tunnelService.intendedTunnels.contains(profileId), "Non-user-initiated stop must preserve intended state")
+        
+        // User-initiated stop clears intended status
+        tunnelService.stopTunnels(for: profile, isUserInitiated: true)
+        TestContext.assertFalse(tunnelService.intendedTunnels.contains(profileId), "User-initiated stop must clear intended state")
+    }
+    
     print("")
     
     // ---------------------------------------------------------

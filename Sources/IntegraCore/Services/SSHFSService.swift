@@ -201,6 +201,11 @@ public class SSHFSService: ObservableObject {
             try? await RemoteExecService.shared.startControlSocket(for: profile)
         }
         
+        // Port Forwarding Tunnels: Auto-start enabled tunnels for databases and AI models
+        if profile.portTunnels.contains(where: { $0.isEnabled }) {
+            try? await SSHTunnelService.shared.startTunnels(for: profile)
+        }
+        
         // Record intended mount for network recovery engine
         NetworkRecoveryService.shared.recordIntendedMount(profile.id)
         
@@ -216,7 +221,7 @@ public class SSHFSService: ObservableObject {
         
         // Stop any active control master sockets and port tunnels
         RemoteExecService.shared.stopControlSocket(for: profile)
-        SSHTunnelService.shared.stopTunnels(for: profile)
+        SSHTunnelService.shared.stopTunnels(for: profile, isUserInitiated: isUserInitiated)
         
         // If user initiated, remove Desktop shortcut and clear intended mount
         if isUserInitiated {

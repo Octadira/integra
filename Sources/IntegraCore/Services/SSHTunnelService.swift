@@ -17,10 +17,16 @@ public class SSHTunnelService: ObservableObject {
     @Published public var activeTunnelsByProfile: [UUID: [ActiveTunnelInfo]] = [:]
     @Published public var runningProcesses: [UUID: Process] = [:]
     
+    public var intendedTunnels: Set<UUID> = []
+    private var activeReconnectTasks: [UUID: Task<Void, Never>] = [:]
+    
     public init() {}
     
     public func isTunnelRunning(for profileId: UUID) -> Bool {
-        return runningProcesses[profileId] != nil && (activeTunnelsByProfile[profileId]?.isEmpty == false)
+        guard let process = runningProcesses[profileId], process.isRunning else {
+            return false
+        }
+        return activeTunnelsByProfile[profileId]?.isEmpty == false
     }
     
     public func checkPortAvailability(port: Int) -> Bool {
@@ -52,8 +58,8 @@ public class SSHTunnelService: ObservableObject {
             throw NSError(domain: "SSHTunnelService", code: 400, userInfo: [NSLocalizedDescriptionKey: "No port tunnel rules enabled for this server."])
         }
         
-        // Stop any existing tunnel process for this profile
-        stopTunnels(for: profile)
+        // Stop any existing tunnel process for this profile without clearing intended state
+        stopTunnels(for: profile, isUserInitiated: false)
         
         // Check port availability
         for rule in enabledRules {
@@ -140,6 +146,24 @@ public class SSHTunnelService: ObservableObject {
             }
         }
         
+        // Register termination handler for proactive dead-process cleanup and auto-healing
+        let profileId = profile.id
+        process.terminationHandler = { [weak self] terminatedProc in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                if self.runningProcesses[profileId] == terminatedProc {
+                    self.runningProcesses.removeValue(forKey: profileId)
+                    self.activeTunnelsByProfile.removeValue(forKey: profileId)
+                    
+                    // Auto-reconnect if intended to be active and autoReconnect is enabled
+                    if self.intendedTunnels.contains(profileId) && AppSettings.shared.autoReconnectOnRecovery {
+                        IntegraLogger.shared.log("[SSHTunnelService] SSH tunnel process for \(profile.name) terminated unexpectedly (exit code \(terminatedProc.terminationStatus)). Scheduling auto-recovery...")
+                        self.scheduleTunnelReconnect(for: profile, attempt: 0)
+                    }
+                }
+            }
+        }
+        
         do {
             try process.run()
             
@@ -153,6 +177,9 @@ public class SSHTunnelService: ObservableObject {
             }
             
             runningProcesses[profile.id] = process
+            intendedTunnels.insert(profile.id)
+            activeReconnectTasks[profile.id]?.cancel()
+            activeReconnectTasks.removeValue(forKey: profile.id)
             
             var activeInfos: [ActiveTunnelInfo] = []
             for rule in enabledRules {
@@ -171,13 +198,64 @@ public class SSHTunnelService: ObservableObject {
         }
     }
     
-    public func stopTunnels(for profile: SSHProfile) {
+    public func stopTunnels(for profile: SSHProfile, isUserInitiated: Bool = true) {
+        if isUserInitiated {
+            intendedTunnels.remove(profile.id)
+            activeReconnectTasks[profile.id]?.cancel()
+            activeReconnectTasks.removeValue(forKey: profile.id)
+        }
+        
         if let proc = runningProcesses[profile.id] {
+            proc.terminationHandler = nil
             if proc.isRunning {
                 proc.terminate()
             }
             runningProcesses.removeValue(forKey: profile.id)
         }
         activeTunnelsByProfile.removeValue(forKey: profile.id)
+    }
+    
+    public func scheduleTunnelReconnect(for profile: SSHProfile, attempt: Int) {
+        activeReconnectTasks[profile.id]?.cancel()
+        
+        let maxAttempts = 6
+        guard attempt < maxAttempts else {
+            IntegraLogger.shared.log("[SSHTunnelService] Max auto-reconnect attempts reached for tunnels on \(profile.name)")
+            activeReconnectTasks.removeValue(forKey: profile.id)
+            return
+        }
+        
+        let delaySeconds = min(30.0, 1.5 * pow(2.0, Double(attempt)))
+        
+        activeReconnectTasks[profile.id] = Task {
+            try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard self.intendedTunnels.contains(profile.id) else { return }
+            
+            do {
+                try await self.startTunnels(for: profile)
+                IntegraLogger.shared.log("[SSHTunnelService] Successfully auto-recovered SSH tunnels for \(profile.name)")
+            } catch {
+                IntegraLogger.shared.log("[SSHTunnelService] Tunnel auto-recovery attempt \(attempt + 1) failed for \(profile.name): \(error.localizedDescription)")
+                self.scheduleTunnelReconnect(for: profile, attempt: attempt + 1)
+            }
+        }
+    }
+    
+    public func recoverTunnelsIfNeeded(store: ProfileStore) {
+        guard AppSettings.shared.autoReconnectOnRecovery else { return }
+        
+        for profile in store.profiles {
+            let hasEnabledRules = profile.portTunnels.contains(where: { $0.isEnabled })
+            guard hasEnabledRules else { continue }
+            
+            let isMounted = SSHFSService.shared.isProfileMounted(profile)
+            let isIntended = intendedTunnels.contains(profile.id)
+            
+            if (isMounted || isIntended) && !isTunnelRunning(for: profile.id) {
+                intendedTunnels.insert(profile.id)
+                scheduleTunnelReconnect(for: profile, attempt: 0)
+            }
+        }
     }
 }
