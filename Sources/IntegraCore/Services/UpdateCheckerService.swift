@@ -6,7 +6,12 @@ import Combine
 public class UpdateCheckerService: ObservableObject {
     public static let shared = UpdateCheckerService()
     
-    public static let currentVersion: String = "0.15.4"
+    public static var currentVersion: String {
+        if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !version.isEmpty {
+            return version
+        }
+        return "0.16.2"
+    }
     
     @Published public var isChecking: Bool = false
     @Published public var updateAvailable: Bool = false

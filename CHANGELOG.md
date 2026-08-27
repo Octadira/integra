@@ -5,6 +5,14 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2] - 2026-08-27
+
+### Fixed
+- **Dynamic Bundle Version Detection in Update Checker (`UpdateCheckerService.swift`)**:
+  - Replaced static version string with dynamic `Bundle.main.infoDictionary["CFBundleShortVersionString"]` evaluation, ensuring accurate self-version detection and preventing false-positive update notifications when running the latest release.
+
+---
+
 ## [0.16.1] - 2026-08-27
 
 ### Fixed
