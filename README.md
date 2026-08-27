@@ -55,6 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/Octadira/integra/main/scripts/insta
 - **🖥️ Desktop Shortcuts & Finder Integration**: Automatically pins a clean shortcut on `~/Desktop` upon mount and cleans it up upon unmount.
 - **⚡ IDE & Terminal Launchers**: Open remote workspaces directly in **VS Code**, **Cursor**, **Antigravity 2.0 IDE**, **Windsurf**, **Kiro (kiro.dev)**, **Codex (OpenAI)**, **Zed**, or **OpenCode**, and launch sessions in **Terminal.app**, **Ghostty**, **iTerm2**, or **Warp**.
 - **🌐 Remote Directory Explorer**: Visual remote Linux filesystem navigator built right into the profile editor with parent jumps and hidden dot-file toggling.
+- **📦 Profile Backup & Cross-Platform Sync**: 1-click **Export Profiles (JSON)** and **Import Profiles (JSON)** in Settings for rapid backup, seamless migration across macOS workstations, and direct interoperability with `Integra-Win` (Windows CLI).
 - **🔄 Background Update Checker & Discrete Badging**: Low-overhead 24-hour background release checker listening to sleep/wake cycles with manual trigger in Settings and discrete, non-intrusive status badges.
 
 ---

@@ -5,6 +5,18 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-08-27
+
+### Added
+- **1-Click Profile Backup & Cross-Platform Synchronization (`SettingsView.swift`, `ProfileStore.swift`)**:
+  - Added dedicated **"Profile Backup & Cross-Platform Sync"** section in `SettingsView` featuring native macOS **Export Profiles (JSON)** and **Import Profiles (JSON)** actions.
+  - Implemented `exportProfilesToData()`, `exportProfiles(to:)`, and `importProfiles(from:mergeStrategy:)` in `ProfileStore` supporting seamless backup, migration across macOS workstations, and cross-compatibility with `Integra-Win` (Windows CLI).
+  - Added non-destructive merging of imported JSON profiles with collision detection and feedback banners.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testProfileStoreExportAndImportJSON` covering profile serialization, round-trip export, duplicate detection, and import merge strategies (43/43 tests passing).
+
+---
+
 ## [0.15.4] - 2026-08-26
 
 ### Fixed

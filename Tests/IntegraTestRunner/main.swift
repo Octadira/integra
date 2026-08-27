@@ -82,6 +82,35 @@ func main() async {
         TestContext.assertEqual(profileCustomUser.effectiveUser, "deploy")
     }
     
+    TestContext.runTest(suite: "SSHProfileTests", name: "testProfileStoreExportAndImportJSON") {
+        let store = ProfileStore()
+        let p1 = SSHProfile(name: "Server-1", host: "1.2.3.4", port: 22, user: "admin", remotePath: "/app1")
+        let p2 = SSHProfile(name: "Server-2", host: "5.6.7.8", port: 2222, user: "root", remotePath: "/app2")
+        store.profiles = [p1, p2]
+        
+        // Test Export
+        let exportedData = try store.exportProfilesToData()
+        TestContext.assertTrue(exportedData.count > 0, "Exported data must not be empty")
+        
+        let jsonString = String(data: exportedData, encoding: .utf8) ?? ""
+        TestContext.assertTrue(jsonString.contains("Server-1"), "Exported JSON must contain Server-1")
+        TestContext.assertTrue(jsonString.contains("Server-2"), "Exported JSON must contain Server-2")
+        
+        // Test Import with Merge
+        let p3 = SSHProfile(name: "Server-3", host: "9.10.11.12", port: 22, user: "deploy", remotePath: "/app3")
+        let mergeData = try JSONEncoder().encode([p3])
+        let importedCount = try store.importProfiles(from: mergeData, mergeStrategy: .merge)
+        TestContext.assertEqual(importedCount, 1, "Must report 1 new profile imported")
+        TestContext.assertEqual(store.profiles.count, 3, "Profile store must now contain 3 profiles")
+        
+        // Test Import with Replace
+        let replaceData = try JSONEncoder().encode([p3])
+        let replaceCount = try store.importProfiles(from: replaceData, mergeStrategy: .replace)
+        TestContext.assertEqual(replaceCount, 1, "Must report 1 profile in replacement")
+        TestContext.assertEqual(store.profiles.count, 1, "Profile store must contain only the replacement profile")
+        TestContext.assertEqual(store.profiles.first?.name, "Server-3")
+    }
+    
     print("")
     
     // ---------------------------------------------------------

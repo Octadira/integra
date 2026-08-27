@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 public struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
@@ -10,6 +11,13 @@ public struct SettingsView: View {
     
     @State private var autoUnmountOnSleep = true
     @State private var showSavedToast = false
+    
+    @State private var showExportSuccess = false
+    @State private var exportSuccessMessage = ""
+    @State private var showImportSuccess = false
+    @State private var importSuccessMessage = ""
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
     
     public init() {}
     
@@ -30,7 +38,7 @@ public struct SettingsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                             
-                            Text("v0.15.4")
+                            Text("v0.16.0")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 8)
@@ -356,6 +364,122 @@ public struct SettingsView: View {
                     .cornerRadius(10)
                 }
                 
+                // Section: Profile Backup & Cross-Platform Sync
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("Profile Backup & Cross-Platform Sync", systemImage: "arrow.left.arrow.right.circle")
+                            .font(.headline)
+                        Spacer()
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Export your server configurations, remote paths, and port tunnels to a portable JSON file to backup your setup or synchronize with other Macs and Integra-Win (Windows CLI).")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                exportProfilesDialog()
+                            }) {
+                                Label("Export Profiles (JSON)", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.regular)
+                            
+                            Button(action: {
+                                importProfilesDialog()
+                            }) {
+                                Label("Import Profiles (JSON)", systemImage: "square.and.arrow.down")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.regular)
+                            
+                            Spacer()
+                        }
+                        
+                        if showExportSuccess {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundColor(.green)
+                                    .font(.body)
+                                Text(exportSuccessMessage)
+                                    .font(.caption)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Button(action: {
+                                    withAnimation {
+                                        showExportSuccess = false
+                                    }
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(10)
+                            .background(Color.green.opacity(0.12))
+                            .cornerRadius(8)
+                            .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
+                        }
+                        
+                        if showImportSuccess {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundColor(.green)
+                                    .font(.body)
+                                Text(importSuccessMessage)
+                                    .font(.caption)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Button(action: {
+                                    withAnimation {
+                                        showImportSuccess = false
+                                    }
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(10)
+                            .background(Color.green.opacity(0.12))
+                            .cornerRadius(8)
+                            .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
+                        }
+                        
+                        if showErrorAlert {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.red)
+                                    .font(.body)
+                                Text(errorMessage)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                Spacer()
+                                Button(action: {
+                                    withAnimation {
+                                        showErrorAlert = false
+                                    }
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(10)
+                            .background(Color.red.opacity(0.12))
+                            .cornerRadius(8)
+                            .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
+                        }
+                    }
+                    .padding()
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+                }
+                
                 // Section: Software Updates
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -438,6 +562,62 @@ public struct SettingsView: View {
             .padding(28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private func exportProfilesDialog() {
+        let panel = NSSavePanel()
+        panel.title = "Export Server Profiles"
+        panel.prompt = "Export"
+        panel.nameFieldStringValue = "integra-profiles.json"
+        panel.allowedContentTypes = [.json]
+        
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                try ProfileStore.shared.exportProfiles(to: url)
+                exportSuccessMessage = "Successfully exported \(ProfileStore.shared.profiles.count) profile(s) to \(url.lastPathComponent)."
+                withAnimation {
+                    showExportSuccess = true
+                    showImportSuccess = false
+                    showErrorAlert = false
+                }
+            } catch {
+                errorMessage = "Failed to export profiles: \(error.localizedDescription)"
+                withAnimation {
+                    showErrorAlert = true
+                    showExportSuccess = false
+                    showImportSuccess = false
+                }
+            }
+        }
+    }
+    
+    private func importProfilesDialog() {
+        let panel = NSOpenPanel()
+        panel.title = "Import Server Profiles"
+        panel.prompt = "Import"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                let count = try ProfileStore.shared.importProfiles(from: url, mergeStrategy: .merge)
+                importSuccessMessage = "Successfully imported \(count) profile(s) from \(url.lastPathComponent)."
+                withAnimation {
+                    showImportSuccess = true
+                    showExportSuccess = false
+                    showErrorAlert = false
+                }
+            } catch {
+                errorMessage = "Failed to import profiles: \(error.localizedDescription)"
+                withAnimation {
+                    showErrorAlert = true
+                    showExportSuccess = false
+                    showImportSuccess = false
+                }
+            }
+        }
     }
     
     private func terminalSubtitle(for app: TerminalApp) -> String {

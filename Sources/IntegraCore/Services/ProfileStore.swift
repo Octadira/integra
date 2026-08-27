@@ -65,6 +65,56 @@ public class ProfileStore: ObservableObject {
         }
     }
     
+    public enum ImportMergeStrategy: Sendable {
+        case merge
+        case replace
+    }
+    
+    /// Exports all configured SSH profiles to formatted JSON Data.
+    public func exportProfilesToData() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(profiles)
+    }
+    
+    /// Exports all configured SSH profiles to a target JSON file URL.
+    public func exportProfiles(to url: URL) throws {
+        let data = try exportProfilesToData()
+        try data.write(to: url, options: .atomic)
+    }
+    
+    /// Imports profiles from JSON Data, with either merge or replace strategy.
+    /// Returns the number of imported/updated profiles.
+    @discardableResult
+    public func importProfiles(from data: Data, mergeStrategy: ImportMergeStrategy = .merge) throws -> Int {
+        let decoded = try JSONDecoder().decode([SSHProfile].self, from: data)
+        guard !decoded.isEmpty else { return 0 }
+        
+        if mergeStrategy == .replace {
+            self.profiles = decoded
+            return decoded.count
+        }
+        
+        var importedCount = 0
+        for newProfile in decoded {
+            if let existingIndex = profiles.firstIndex(where: { $0.id == newProfile.id || ($0.host == newProfile.host && $0.user == newProfile.user && $0.remotePath == newProfile.remotePath) }) {
+                profiles[existingIndex] = newProfile
+                importedCount += 1
+            } else {
+                profiles.append(newProfile)
+                importedCount += 1
+            }
+        }
+        return importedCount
+    }
+    
+    /// Imports profiles from a JSON file URL.
+    @discardableResult
+    public func importProfiles(from url: URL, mergeStrategy: ImportMergeStrategy = .merge) throws -> Int {
+        let data = try Data(contentsOf: url)
+        return try importProfiles(from: data, mergeStrategy: mergeStrategy)
+    }
+    
     private func loadProfiles() {
         // 1. Primary: Load from Application Support/Integra/profiles.json
         let fileURL = applicationSupportURL
@@ -93,3 +143,4 @@ public class ProfileStore: ObservableObject {
         }
     }
 }
+
