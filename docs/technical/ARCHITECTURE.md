@@ -65,7 +65,7 @@
 - **`ActiveMountsView.swift`**: Dedicated live dashboard monitoring currently mounted filesystems with instant "Unmount All" action, mount paths, and quick launchers.
 - **`AIToolsModalView.swift`**: Dedicated 3-tab modal managing MCP Auto-Configuration, SSH Port Forwarding rules (Ollama, PostgreSQL, Redis, custom), and the `integra-exec` remote command bridge with animated toast feedback.
 - **`ProfileEditView.swift`**: High-stability scrollable modal form with dedicated cards for Server Connection Info, Authentication Mode, Filesystem Paths, **Sudo & AI Privilege Escalation**, Auto-Mount on Startup, and Desktop shortcut options.
-- **`SettingsView.swift`**: Interactive configuration panel for default Terminal emulators (Terminal, Ghostty, iTerm2, Warp), Code Editors (VS Code, Cursor, Antigravity 2.0 IDE, Windsurf, Kiro, Codex), AI Integration Modes (`MCP-Only`, `Hybrid`, `Legacy CLI`), 1-Click MCP Auto-Configuration, and Launch at Login.
+- **`SettingsView.swift`**: Interactive configuration panel for default Terminal emulators (Terminal, Ghostty, iTerm2, Warp), Code Editors (VS Code, Cursor, Antigravity 2.0 IDE, Windsurf, Kiro, Codex), AI Integration Modes (`MCP-Only`, `Hybrid`, `Legacy CLI`), 1-Click MCP Auto-Configuration, **Profile Backup & Cross-Platform Sync (1-Click JSON Export & Import)**, and Launch at Login.
 - **`DependencyDoctorView.swift`**: One-click system dependency diagnostic and automated installer interface.
 - **`MenuBarView.swift`**: macOS status bar menu item (`MenuBarExtra`) enabling 1-click quick mounting directly from the top menu bar.
 
@@ -75,7 +75,7 @@
 
 - **`MCPConfigService.swift`**: Discovers, reads, and merges the Integra MCP server configuration across **15 AI clients** (Claude Desktop, Claude Code CLI, OpenAI Codex, Kiro, Cursor, Antigravity 2.0, VS Code, OpenCode CLI & Desktop, Windsurf, Cline, Roo Code, Continue.dev, Pi.dev, Zed) with atomic non-destructive JSON and TOML merging.
 - **`SudoAuthManager.swift`**: Manages Touch ID biometric evaluation (`LAContext`), universal macOS GUI dialog prompts, and 15-minute grace period session caching for administrative command execution.
-- **`ProfileStore.swift`**: Manages CRUD operations for connection profiles. Persists data permanently in `~/Library/Application Support/Integra/profiles.json`, guaranteeing cross-version survival.
+- **`ProfileStore.swift`**: Manages CRUD operations, serialization, and synchronization for connection profiles. Persists data permanently in `~/Library/Application Support/Integra/profiles.json` with hermetic test-harness storage URL injection (`storageURL`), and provides `exportProfilesToData()`, `exportProfiles(to:)`, and `importProfiles(from:mergeStrategy:)` for 1-click portable JSON backup and cross-compatibility with `Integra-Win` (Windows CLI).
 - **`SSHFSService.swift`**: Manages background execution of `sshfs` processes, mount table polling (`/sbin/mount`), active mount detection, and graceful unmounting.
 - **`LaunchAtLoginService.swift`**: Controls background launch of Integra at macOS login using Apple's modern `SMAppService.mainApp` API.
 - **`AgentInstructionService.swift`**: Manages `AGENTS.md` and `CLAUDE.md` provisioning based on selected `AIIntegrationMode` (`.mcpOnly`, `.hybrid`, `.cliAndMarkdown`).
