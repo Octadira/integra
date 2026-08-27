@@ -5,6 +5,15 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] - 2026-08-27
+
+### Fixed
+- **Hermetic Test Data Isolation & Production Profile Protection (`ProfileStore.swift`, `main.swift`)**:
+  - Implemented configurable `storageURL` dependency injection in `ProfileStore`, strictly isolating automated test executions in temporary sandboxed files and guaranteeing test runners never write to or alter the user's active `Application Support/Integra/profiles.json` storage.
+  - Verified and guaranteed full data integrity for all configured server connections and active mount mappings.
+
+---
+
 ## [0.16.0] - 2026-08-27
 
 ### Added

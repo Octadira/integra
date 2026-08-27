@@ -83,7 +83,10 @@ func main() async {
     }
     
     TestContext.runTest(suite: "SSHProfileTests", name: "testProfileStoreExportAndImportJSON") {
-        let store = ProfileStore()
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("integra_test_profiles_\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        
+        let store = ProfileStore(storageURL: tempURL)
         let p1 = SSHProfile(name: "Server-1", host: "1.2.3.4", port: 22, user: "admin", remotePath: "/app1")
         let p2 = SSHProfile(name: "Server-2", host: "5.6.7.8", port: 2222, user: "root", remotePath: "/app2")
         store.profiles = [p1, p2]

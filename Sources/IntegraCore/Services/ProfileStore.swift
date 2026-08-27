@@ -12,8 +12,12 @@ public class ProfileStore: ObservableObject {
     }
     
     private let saveKey = "Integra_SSHProfiles_v1"
+    private let customStorageURL: URL?
     
     private var applicationSupportURL: URL {
+        if let customStorageURL = customStorageURL {
+            return customStorageURL
+        }
         let fileManager = FileManager.default
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support")
         let integraDir = appSupport.appendingPathComponent("Integra", isDirectory: true)
@@ -23,7 +27,8 @@ public class ProfileStore: ObservableObject {
         return integraDir.appendingPathComponent("profiles.json")
     }
     
-    public init() {
+    public init(storageURL: URL? = nil) {
+        self.customStorageURL = storageURL
         loadProfiles()
     }
     
