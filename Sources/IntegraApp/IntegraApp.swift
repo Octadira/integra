@@ -71,6 +71,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NetworkRecoveryService.shared.triggerRecovery(reason: "Startup post-boot verification")
         }
     }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        IntegraLogger.shared.log("Application terminating. Cleaning up SSH tunnels and background processes...")
+        Task { @MainActor in
+            SSHTunnelService.shared.stopAllTunnels()
+        }
+    }
 }
 
 @main

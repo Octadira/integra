@@ -55,6 +55,50 @@ public class SSHTunnelService: ObservableObject {
         return bindResult == 0
     }
     
+    public func reclaimPortIfStaleSSHProcess(port: Int, host: String) -> Bool {
+        guard !checkPortAvailability(port: port) else { return true }
+        
+        let lsofProc = Process()
+        lsofProc.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+        lsofProc.arguments = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-t"]
+        let pipe = Pipe()
+        lsofProc.standardOutput = pipe
+        do {
+            try lsofProc.run()
+            lsofProc.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !output.isEmpty {
+                let pids = output.components(separatedBy: .newlines).compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
+                for pid in pids {
+                    let psProc = Process()
+                    psProc.executableURL = URL(fileURLWithPath: "/bin/ps")
+                    psProc.arguments = ["-p", "\(pid)", "-o", "command="]
+                    let psPipe = Pipe()
+                    psProc.standardOutput = psPipe
+                    try? psProc.run()
+                    psProc.waitUntilExit()
+                    
+                    let psData = psPipe.fileHandleForReading.readDataToEndOfFile()
+                    let command = String(data: psData, encoding: .utf8) ?? ""
+                    
+                    if command.contains("ssh") && (command.contains("-L") || command.contains(":\(port):") || command.contains(host)) {
+                        IntegraLogger.shared.log("[SSHTunnelService] Reclaiming port \(port) from orphaned SSH tunnel process (PID \(pid))...")
+                        kill(pid, SIGTERM)
+                        usleep(250_000)
+                        if kill(pid, 0) == 0 {
+                            kill(pid, SIGKILL)
+                            usleep(100_000)
+                        }
+                    }
+                }
+            }
+        } catch {
+            // Continue to port check
+        }
+        
+        return checkPortAvailability(port: port)
+    }
+    
     public func startTunnels(for profile: SSHProfile) async throws {
         let enabledRules = profile.portTunnels.filter { $0.isEnabled }
         guard !enabledRules.isEmpty else {
@@ -64,9 +108,9 @@ public class SSHTunnelService: ObservableObject {
         // Stop any existing tunnel process for this profile without clearing intended state
         stopTunnels(for: profile, isUserInitiated: false)
         
-        // Check port availability
+        // Check port availability and auto-reclaim orphaned SSH processes
         for rule in enabledRules {
-            if !checkPortAvailability(port: rule.localPort) {
+            if !reclaimPortIfStaleSSHProcess(port: rule.localPort, host: profile.host) {
                 let err = "Local port \(rule.localPort) is already in use by another application."
                 tunnelErrors[profile.id] = err
                 throw NSError(
@@ -299,5 +343,22 @@ public class SSHTunnelService: ObservableObject {
                 scheduleTunnelReconnect(for: profile, attempt: 1)
             }
         }
+    }
+    
+    public func stopAllTunnels() {
+        for (_, proc) in runningProcesses {
+            proc.terminationHandler = nil
+            if proc.isRunning {
+                proc.terminate()
+            }
+        }
+        runningProcesses.removeAll()
+        activeTunnelsByProfile.removeAll()
+        for scriptURL in activeAskPassScripts.values {
+            try? FileManager.default.removeItem(at: scriptURL)
+        }
+        activeAskPassScripts.removeAll()
+        activeReconnectTasks.values.forEach { $0.cancel() }
+        activeReconnectTasks.removeAll()
     }
 }
