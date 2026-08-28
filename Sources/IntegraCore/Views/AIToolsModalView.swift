@@ -348,6 +348,13 @@ public struct AIToolsModalView: View {
                     Text("Tunnel remote AI and DB services securely to your local Mac.")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    
+                    if !isTunnelRunning, let errorMsg = tunnelService.tunnelErrors[profile.id] {
+                        Text(errorMsg)
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                            .lineLimit(2)
+                    }
                 }
                 Spacer()
                 

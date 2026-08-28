@@ -5,6 +5,20 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.3] - 2026-08-28
+
+### Fixed
+- **Throttled Auto-Reconnect Guard & Flapping Loop Prevention (`SSHTunnelService.swift`, `AIToolsModalView.swift`)**:
+  - Fixed infinite connect-disconnect flapping loop when an SSH host is unreachable, offline, or timing out (e.g. `ABO-001`).
+  - Added strict 5-attempt retry limit with exponential backoff (2s, 4s, 8s, 16s, 30s) that halts auto-recovery and marks the tunnel inactive if the host remains unreachable.
+  - Reset retry counter only after at least 60 seconds of stable connection uptime.
+  - Retained AskPass script throughout the full lifecycle of the background SSH process, cleaning up scripts on termination.
+  - Exposed `tunnelErrors` in the UI to display clear descriptive error captions when a tunnel connection times out or fails.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added `testTunnelFlappingLoopPreventionAndMaxRetries` verifying retry capping and loop prevention (44/44 tests passing).
+
+---
+
 ## [0.16.2] - 2026-08-27
 
 ### Fixed

@@ -360,6 +360,23 @@ func main() async {
         TestContext.assertFalse(tunnelService.intendedTunnels.contains(profileId), "User-initiated stop must clear intended state")
     }
     
+    TestContext.runTest(suite: "SSHTunnelTests", name: "testTunnelFlappingLoopPreventionAndMaxRetries") {
+        let tunnelService = SSHTunnelService.shared
+        let profileId = UUID()
+        var profile = SSHProfile(id: profileId, name: "UnreachableServer", host: "192.0.2.1", port: 22, user: "root")
+        let rule = PortTunnelRule(name: "MySQL", localPort: 3306, remotePort: 3306, isEnabled: true)
+        profile.portTunnels = [rule]
+        
+        tunnelService.intendedTunnels.insert(profileId)
+        tunnelService.reconnectAttemptsByProfile[profileId] = 5
+        
+        // Exceeding 5 attempts must halt reconnect and clear intended state
+        tunnelService.scheduleTunnelReconnect(for: profile, attempt: 6)
+        
+        TestContext.assertFalse(tunnelService.intendedTunnels.contains(profileId), "Exceeding max retries must halt loop and remove from intended tunnels")
+        TestContext.assertNil(tunnelService.reconnectAttemptsByProfile[profileId], "Reconnect attempts must be cleaned up on halt")
+    }
+    
     print("")
     
     // ---------------------------------------------------------

@@ -10,7 +10,7 @@ public class UpdateCheckerService: ObservableObject {
         if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !version.isEmpty {
             return version
         }
-        return "0.16.2"
+        return "0.16.3"
     }
     
     @Published public var isChecking: Bool = false

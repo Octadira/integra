@@ -73,7 +73,7 @@ curl -fsSL https://raw.githubusercontent.com/Octadira/integra/main/scripts/insta
 git clone https://github.com/Octadira/integra.git
 cd integra
 
-# Build release binary, run 42 automated tests, and package drag-and-drop DMG installer
+# Build release binary, run 44 automated tests, and package drag-and-drop DMG installer
 ./scripts/package_app.sh
 ```
 

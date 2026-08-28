@@ -16,9 +16,12 @@ public class SSHTunnelService: ObservableObject {
     
     @Published public var activeTunnelsByProfile: [UUID: [ActiveTunnelInfo]] = [:]
     @Published public var runningProcesses: [UUID: Process] = [:]
+    @Published public var tunnelErrors: [UUID: String] = [:]
     
     public var intendedTunnels: Set<UUID> = []
+    public var reconnectAttemptsByProfile: [UUID: Int] = [:]
     private var activeReconnectTasks: [UUID: Task<Void, Never>] = [:]
+    private var activeAskPassScripts: [UUID: URL] = [:]
     
     public init() {}
     
@@ -64,10 +67,12 @@ public class SSHTunnelService: ObservableObject {
         // Check port availability
         for rule in enabledRules {
             if !checkPortAvailability(port: rule.localPort) {
+                let err = "Local port \(rule.localPort) is already in use by another application."
+                tunnelErrors[profile.id] = err
                 throw NSError(
                     domain: "SSHTunnelService",
                     code: 409,
-                    userInfo: [NSLocalizedDescriptionKey: "Local port \(rule.localPort) is already in use by another application."]
+                    userInfo: [NSLocalizedDescriptionKey: err]
                 )
             }
         }
@@ -90,7 +95,6 @@ public class SSHTunnelService: ObservableObject {
             args.append("\(rule.localPort):\(remoteHost):\(rule.remotePort)")
         }
         
-        var askPassScript: URL? = nil
         var env: [String: String] = ProcessInfo.processInfo.environment
         
         switch profile.authMethod {
@@ -117,7 +121,7 @@ public class SSHTunnelService: ObservableObject {
                 """
                 try? scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
                 try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempScript.path)
-                askPassScript = tempScript
+                activeAskPassScripts[profile.id] = tempScript
                 
                 env["SSH_ASKPASS"] = tempScript.path
                 env["SSH_ASKPASS_REQUIRE"] = "force"
@@ -139,26 +143,39 @@ public class SSHTunnelService: ObservableObject {
         let errPipe = Pipe()
         process.standardError = errPipe
         
-        let finalAskPass = askPassScript
-        defer {
-            if let scriptURL = finalAskPass {
-                try? FileManager.default.removeItem(at: scriptURL)
-            }
-        }
-        
-        // Register termination handler for proactive dead-process cleanup and auto-healing
+        // Register termination handler for proactive dead-process cleanup and throttled auto-healing
         let profileId = profile.id
         process.terminationHandler = { [weak self] terminatedProc in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 if self.runningProcesses[profileId] == terminatedProc {
                     self.runningProcesses.removeValue(forKey: profileId)
-                    self.activeTunnelsByProfile.removeValue(forKey: profileId)
+                    let previousInfos = self.activeTunnelsByProfile.removeValue(forKey: profileId)
                     
-                    // Auto-reconnect if intended to be active and autoReconnect is enabled
+                    if let scriptURL = self.activeAskPassScripts.removeValue(forKey: profileId) {
+                        try? FileManager.default.removeItem(at: scriptURL)
+                    }
+                    
+                    // Check stability: if tunnel was connected for >60s, reset attempt counter
+                    let uptime = previousInfos?.first?.startedAt.timeIntervalSinceNow ?? 0
+                    if abs(uptime) > 60 {
+                        self.reconnectAttemptsByProfile[profileId] = 0
+                    }
+                    
+                    let currentAttempt = (self.reconnectAttemptsByProfile[profileId] ?? 0) + 1
+                    
+                    // Throttled Auto-Reconnect Guard (Max 5 attempts to prevent infinite flapping loops)
                     if self.intendedTunnels.contains(profileId) && AppSettings.shared.autoReconnectOnRecovery {
-                        IntegraLogger.shared.log("[SSHTunnelService] SSH tunnel process for \(profile.name) terminated unexpectedly (exit code \(terminatedProc.terminationStatus)). Scheduling auto-recovery...")
-                        self.scheduleTunnelReconnect(for: profile, attempt: 0)
+                        if currentAttempt > 5 {
+                            IntegraLogger.shared.log("[SSHTunnelService] Max auto-reconnect attempts reached (5/5) for \(profile.name). Halting auto-reconnect loop to prevent flapping.")
+                            self.intendedTunnels.remove(profileId)
+                            self.reconnectAttemptsByProfile.removeValue(forKey: profileId)
+                            self.tunnelErrors[profileId] = "SSH tunnel connection to \(profile.host) dropped. Host unreachable or timed out."
+                        } else {
+                            self.reconnectAttemptsByProfile[profileId] = currentAttempt
+                            IntegraLogger.shared.log("[SSHTunnelService] SSH tunnel process for \(profile.name) terminated (exit code \(terminatedProc.terminationStatus)). Scheduling auto-recovery attempt \(currentAttempt)/5...")
+                            self.scheduleTunnelReconnect(for: profile, attempt: currentAttempt)
+                        }
                     }
                 }
             }
@@ -173,11 +190,14 @@ public class SSHTunnelService: ObservableObject {
             if !process.isRunning && process.terminationStatus != 0 {
                 let errData = (try? errPipe.fileHandleForReading.readToEnd()) ?? Data()
                 let errStr = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-                throw NSError(domain: "SSHTunnelService", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: errStr?.isEmpty == false ? errStr! : "SSH Tunnel failed to start (exit code \(process.terminationStatus))"])
+                let finalErr = errStr?.isEmpty == false ? errStr! : "SSH Tunnel failed to start (exit code \(process.terminationStatus))"
+                tunnelErrors[profile.id] = finalErr
+                throw NSError(domain: "SSHTunnelService", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: finalErr])
             }
             
             runningProcesses[profile.id] = process
             intendedTunnels.insert(profile.id)
+            tunnelErrors.removeValue(forKey: profile.id)
             activeReconnectTasks[profile.id]?.cancel()
             activeReconnectTasks.removeValue(forKey: profile.id)
             
@@ -194,6 +214,9 @@ public class SSHTunnelService: ObservableObject {
             activeTunnelsByProfile[profile.id] = activeInfos
             
         } catch {
+            if let scriptURL = activeAskPassScripts.removeValue(forKey: profile.id) {
+                try? FileManager.default.removeItem(at: scriptURL)
+            }
             throw error
         }
     }
@@ -201,8 +224,14 @@ public class SSHTunnelService: ObservableObject {
     public func stopTunnels(for profile: SSHProfile, isUserInitiated: Bool = true) {
         if isUserInitiated {
             intendedTunnels.remove(profile.id)
+            reconnectAttemptsByProfile.removeValue(forKey: profile.id)
             activeReconnectTasks[profile.id]?.cancel()
             activeReconnectTasks.removeValue(forKey: profile.id)
+            tunnelErrors.removeValue(forKey: profile.id)
+        }
+        
+        if let scriptURL = activeAskPassScripts.removeValue(forKey: profile.id) {
+            try? FileManager.default.removeItem(at: scriptURL)
         }
         
         if let proc = runningProcesses[profile.id] {
@@ -218,14 +247,16 @@ public class SSHTunnelService: ObservableObject {
     public func scheduleTunnelReconnect(for profile: SSHProfile, attempt: Int) {
         activeReconnectTasks[profile.id]?.cancel()
         
-        let maxAttempts = 6
-        guard attempt < maxAttempts else {
+        guard attempt <= 5 else {
             IntegraLogger.shared.log("[SSHTunnelService] Max auto-reconnect attempts reached for tunnels on \(profile.name)")
+            intendedTunnels.remove(profile.id)
+            reconnectAttemptsByProfile.removeValue(forKey: profile.id)
             activeReconnectTasks.removeValue(forKey: profile.id)
             return
         }
         
-        let delaySeconds = min(30.0, 1.5 * pow(2.0, Double(attempt)))
+        // Exponential backoff: 2s, 4s, 8s, 16s, 30s
+        let delaySeconds = min(30.0, 2.0 * pow(2.0, Double(max(0, attempt - 1))))
         
         activeReconnectTasks[profile.id] = Task {
             try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
@@ -235,9 +266,19 @@ public class SSHTunnelService: ObservableObject {
             do {
                 try await self.startTunnels(for: profile)
                 IntegraLogger.shared.log("[SSHTunnelService] Successfully auto-recovered SSH tunnels for \(profile.name)")
+                self.reconnectAttemptsByProfile.removeValue(forKey: profile.id)
+                self.tunnelErrors.removeValue(forKey: profile.id)
             } catch {
-                IntegraLogger.shared.log("[SSHTunnelService] Tunnel auto-recovery attempt \(attempt + 1) failed for \(profile.name): \(error.localizedDescription)")
-                self.scheduleTunnelReconnect(for: profile, attempt: attempt + 1)
+                IntegraLogger.shared.log("[SSHTunnelService] Tunnel auto-recovery attempt \(attempt)/5 failed for \(profile.name): \(error.localizedDescription)")
+                self.tunnelErrors[profile.id] = error.localizedDescription
+                let nextAttempt = attempt + 1
+                if nextAttempt <= 5 {
+                    self.reconnectAttemptsByProfile[profile.id] = nextAttempt
+                    self.scheduleTunnelReconnect(for: profile, attempt: nextAttempt)
+                } else {
+                    self.intendedTunnels.remove(profile.id)
+                    self.reconnectAttemptsByProfile.removeValue(forKey: profile.id)
+                }
             }
         }
     }
@@ -254,7 +295,8 @@ public class SSHTunnelService: ObservableObject {
             
             if (isMounted || isIntended) && !isTunnelRunning(for: profile.id) {
                 intendedTunnels.insert(profile.id)
-                scheduleTunnelReconnect(for: profile, attempt: 0)
+                reconnectAttemptsByProfile[profile.id] = 0
+                scheduleTunnelReconnect(for: profile, attempt: 1)
             }
         }
     }
