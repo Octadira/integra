@@ -141,4 +141,6 @@ Integra provides three user-selectable modes in Settings:
 
 - **Multiplexed Port Forwarding**: 1-click forwarding for Ollama (`11434`), PostgreSQL (`5432`), Redis (`6379`), and custom APIs.
 - **Password Support via `SSH_ASKPASS`**: Port tunnels establish seamlessly on both key-based and password-based remote infrastructure.
-- **Local Loopback Port Collision Detection**: Uses POSIX `bind()` system calls before starting tunnels to prevent binding conflicts on `127.0.0.1`.
+- **Local Loopback Port Collision Detection & Stale Process Reclamation**: Uses POSIX `bind()` system calls before starting tunnels. If a port is occupied by a stale SSH process from a previous session, Integra automatically detects and terminates the orphan process (`reclaimPortIfStaleSSHProcess`) before establishing the new tunnel.
+- **Throttled Auto-Reconnect & Loop Protection**: Enforces an exponential backoff retry ceiling (5 attempts) to prevent infinite connect-disconnect loops when remote hosts are offline.
+- **Application Termination Cleanup**: Automatically terminates all active port forwarding processes on application exit via `applicationWillTerminate`.

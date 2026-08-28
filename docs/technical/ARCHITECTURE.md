@@ -74,13 +74,13 @@
 ## 4. Core Services & Storage Layer (`Sources/IntegraCore/Services/`)
 
 - **`MCPConfigService.swift`**: Discovers, reads, and merges the Integra MCP server configuration across **15 AI clients** (Claude Desktop, Claude Code CLI, OpenAI Codex, Kiro, Cursor, Antigravity 2.0, VS Code, OpenCode CLI & Desktop, Windsurf, Cline, Roo Code, Continue.dev, Pi.dev, Zed) with atomic non-destructive JSON and TOML merging.
-- **`SudoAuthManager.swift`**: Manages Touch ID biometric evaluation (`LAContext`), universal macOS GUI dialog prompts, and 15-minute grace period session caching for administrative command execution.
+- **`SudoAuthManager.swift`**: Manages Touch ID biometric evaluation (`LAContext`), universal macOS GUI dialog prompts, and 1-minute grace period session caching for administrative command execution.
 - **`ProfileStore.swift`**: Manages CRUD operations, serialization, and synchronization for connection profiles. Persists data permanently in `~/Library/Application Support/Integra/profiles.json` with hermetic test-harness storage URL injection (`storageURL`), and provides `exportProfilesToData()`, `exportProfiles(to:)`, and `importProfiles(from:mergeStrategy:)` for 1-click portable JSON backup and cross-compatibility with `Integra-Win` (Windows CLI).
 - **`SSHFSService.swift`**: Manages background execution of `sshfs` processes, mount table polling (`/sbin/mount`), active mount detection, and graceful unmounting.
 - **`LaunchAtLoginService.swift`**: Controls background launch of Integra at macOS login using Apple's modern `SMAppService.mainApp` API.
 - **`AgentInstructionService.swift`**: Manages `AGENTS.md` and `CLAUDE.md` provisioning based on selected `AIIntegrationMode` (`.mcpOnly`, `.hybrid`, `.cliAndMarkdown`).
 - **`NetworkRecoveryService.swift`**: Uses Apple's `Network.framework` (`NWPathMonitor`) and macOS sleep/wake observers to automatically recover broken mounts and OpenSSH ControlMaster sockets with exponential backoff.
-- **`SSHTunnelService.swift`**: Manages background SSH port forwarding processes, detects local loopback port collisions, and exposes live endpoint URLs for AI agents.
+- **`SSHTunnelService.swift`**: Manages background SSH port forwarding processes, auto-reclaims orphaned SSH processes on port conflicts, performs active keepalive health monitoring, and exposes live endpoint URLs for AI agents.
 - **`RemoteExecService.swift`**: Maintains persistent OpenSSH ControlMaster sockets for sub-5ms latency and manages the `~/.local/bin/integra-exec` CLI helper.
 - **`UpdateCheckerService.swift`**: Polls the public release API every 24 hours and upon macOS wake from sleep (`NSWorkspace.didWakeNotification`) to verify SemVer versions and provide non-intrusive UI badging.
 - **`KeychainService.swift`**: Wraps Apple's `Security.framework` (`SecItemAdd`, `SecItemCopyMatching`, `SecItemDelete`) for SSH passwords, private key passphrases, and sudo credentials.

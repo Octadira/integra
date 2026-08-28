@@ -5,6 +5,17 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.4] - 2026-08-28
+
+### Fixed
+- **Automated Stale Port Reclamation & Application Lifecycle Cleanup (`SSHTunnelService.swift`, `IntegraApp.swift`)**:
+  - Implemented `reclaimPortIfStaleSSHProcess` in `SSHTunnelService`, automatically inspecting and terminating orphaned SSH tunnel processes holding target ports (e.g. `3306` for MySQL, `5432` for PostgreSQL) from prior sessions or app restarts instead of throwing false-positive "Port already in use" errors.
+  - Added `applicationWillTerminate` lifecycle handler in `AppDelegate` (`IntegraApp.swift`), guaranteeing that all active background SSH port forwarding processes and temporary `SSH_ASKPASS` scripts are cleanly terminated upon application quit.
+- **Automated Test Suite (`Tests/IntegraTestRunner/main.swift`)**:
+  - Maintained 100% automated test coverage across all 44 unit and regression tests.
+
+---
+
 ## [0.16.3] - 2026-08-28
 
 ### Fixed
