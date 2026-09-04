@@ -137,6 +137,29 @@ public class MCPConfigService: ObservableObject {
         return appBundlePath
     }
     
+    private nonisolated static func runCodexCLI(arguments: [String]) {
+        let candidateCLIs = [
+            "/Applications/ChatGPT.app/Contents/Resources/codex",
+            "\(NSHomeDirectory())/Applications/ChatGPT.app/Contents/Resources/codex",
+            "/Applications/Codex.app/Contents/Resources/codex",
+            "/usr/local/bin/codex",
+            "/opt/homebrew/bin/codex",
+            "\(NSHomeDirectory())/.local/bin/codex"
+        ]
+        for cli in candidateCLIs {
+            if FileManager.default.isExecutableFile(atPath: cli) {
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: cli)
+                proc.arguments = arguments
+                try? proc.run()
+                proc.waitUntilExit()
+                if proc.terminationStatus == 0 {
+                    break
+                }
+            }
+        }
+    }
+    
     public init() {
         refreshAllStatus()
     }
@@ -205,26 +228,9 @@ public class MCPConfigService: ObservableObject {
                 }
                 
                 if client == .codex {
-                    let candidateCLIs = [
-                        "/Applications/ChatGPT.app/Contents/Resources/codex",
-                        "\(NSHomeDirectory())/Applications/ChatGPT.app/Contents/Resources/codex",
-                        "/Applications/Codex.app/Contents/Resources/codex",
-                        "/usr/local/bin/codex",
-                        "/opt/homebrew/bin/codex",
-                        "\(NSHomeDirectory())/.local/bin/codex"
-                    ]
-                    
-                    for cli in candidateCLIs {
-                        if FileManager.default.isExecutableFile(atPath: cli) {
-                            let proc = Process()
-                            proc.executableURL = URL(fileURLWithPath: cli)
-                            proc.arguments = ["mcp", "add", "integra", "--", MCPConfigService.binaryPath]
-                            try? proc.run()
-                            proc.waitUntilExit()
-                            if proc.terminationStatus == 0 {
-                                break
-                            }
-                        }
+                    let bin = MCPConfigService.binaryPath
+                    Task.detached(priority: .userInitiated) {
+                        Self.runCodexCLI(arguments: ["mcp", "add", "integra", "--", bin])
                     }
                     
                     let configURL = URL(fileURLWithPath: path)
@@ -303,24 +309,8 @@ public class MCPConfigService: ObservableObject {
         
         for path in allPaths {
             if client == .codex {
-                let candidateCLIs = [
-                    "/Applications/ChatGPT.app/Contents/Resources/codex",
-                    "\(NSHomeDirectory())/Applications/ChatGPT.app/Contents/Resources/codex",
-                    "/Applications/Codex.app/Contents/Resources/codex",
-                    "/usr/local/bin/codex",
-                    "/opt/homebrew/bin/codex",
-                    "\(NSHomeDirectory())/.local/bin/codex"
-                ]
-                
-                for cli in candidateCLIs {
-                    if FileManager.default.isExecutableFile(atPath: cli) {
-                        let proc = Process()
-                        proc.executableURL = URL(fileURLWithPath: cli)
-                        proc.arguments = ["mcp", "remove", "integra"]
-                        try? proc.run()
-                        proc.waitUntilExit()
-                        break
-                    }
+                Task.detached(priority: .userInitiated) {
+                    Self.runCodexCLI(arguments: ["mcp", "remove", "integra"])
                 }
                 
                 let configURL = URL(fileURLWithPath: path)

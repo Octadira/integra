@@ -87,6 +87,12 @@ public final class SudoAuthManager: @unchecked Sendable {
         }
     }
     
+    public static func sanitizeForAppleScript(_ input: String) -> String {
+        return input
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+    
     private func promptForSudo(profile: SSHProfile, command: String, savedPassword: String?, isRootUser: Bool = false) async -> SudoAuthResult {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -118,8 +124,8 @@ public final class SudoAuthManager: @unchecked Sendable {
                 
                 // Fallback / GUI Dialog via AppleScript for universal cross-process display
                 let serverDesc = profile.name.isEmpty ? profile.host : "\(profile.name) (\(profile.effectiveUser)@\(profile.host))"
-                let escapedCommand = command.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\\", with: "\\\\")
-                let escapedServer = serverDesc.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\\", with: "\\\\")
+                let escapedCommand = Self.sanitizeForAppleScript(command)
+                let escapedServer = Self.sanitizeForAppleScript(serverDesc)
                 
                 if isRootUser {
                     // For root user: only authorization confirmation is needed (no password input needed)

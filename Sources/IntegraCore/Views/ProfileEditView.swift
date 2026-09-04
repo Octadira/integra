@@ -370,6 +370,8 @@ public struct ProfileEditView: View {
         
         if (authMethod == .password || authMethod == .key) && !passwordInput.isEmpty {
             _ = KeychainService.shared.savePassword(account: profile.id.uuidString, password: passwordInput)
+        } else {
+            _ = KeychainService.shared.deletePassword(account: profile.id.uuidString)
         }
         
         if !sudoPasswordInput.isEmpty {

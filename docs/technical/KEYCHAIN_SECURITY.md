@@ -44,6 +44,9 @@ let attributes: [String: Any] = [
 ### 2.6. Automatic SSH Private Key Permission Sanitizer (`0600`)
 - `SSHProfile.sanitizeIdentityFilePermissionsIfNeeded()` enforces strict `0600` (`-rw-------`) POSIX permissions on SSH private key files (`.pem`, `.id_rsa`, `.id_ed25519`) before initiating connections, preventing OpenSSH rejection when keys are group- or world-readable (`0644`).
 
+### 2.7. Ephemeral Tokenized AskPass Scripts (`AskPassHelper`)
+- When password authentication or encrypted SSH keys require an external askpass program, `AskPassHelper` creates an ephemeral script in `NSTemporaryDirectory()` with non-predictable UUID EOF delimiters (`INTEGRA_EOF_<UUID>`) and POSIX `0700` (`-rwx------`) permissions. The script is securely deleted via `defer` blocks as soon as the SSH command or background process completes.
+
 ---
 
 ## 3. Threat Model & Mitigations

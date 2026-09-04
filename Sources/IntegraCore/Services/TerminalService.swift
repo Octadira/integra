@@ -18,7 +18,15 @@ public class TerminalService {
         let safeUser = userSpec.replacingOccurrences(of: "'", with: "'\\''")
         let safeTitle = profile.name.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "$", with: "\\$").replacingOccurrences(of: "`", with: "\\`")
         
-        let sshCmd = "ssh -p \(profile.port) '\(safeUser)'@'\(safeHost)'"
+        var keyArg = ""
+        if profile.authMethod == .key {
+            let keyPath = (profile.identityFile as NSString).expandingTildeInPath
+            if !keyPath.isEmpty {
+                let safeKey = keyPath.replacingOccurrences(of: "'", with: "'\\''")
+                keyArg = " -i '\(safeKey)'"
+            }
+        }
+        let sshCmd = "ssh -p \(profile.port)\(keyArg) '\(safeUser)'@'\(safeHost)'"
         
         let tempScript = FileManager.default.temporaryDirectory.appendingPathComponent("launch_ssh_\(profile.id.uuidString).command")
         let scriptContent = """

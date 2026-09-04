@@ -45,6 +45,7 @@ public class ProfileStore: ObservableObject {
     public func deleteProfile(id: UUID) {
         profiles.removeAll { $0.id == id }
         _ = KeychainService.shared.deletePassword(account: id.uuidString)
+        _ = KeychainService.shared.deleteSudoPassword(for: id)
     }
     
     public func importSSHConfigEntries() {

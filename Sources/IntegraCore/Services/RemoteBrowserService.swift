@@ -72,26 +72,10 @@ public class RemoteBrowserService {
                     args.append(contentsOf: ["-i", keyPath])
                 }
             case .password:
-                if let pass = password, !pass.isEmpty {
-                    let askpassDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".ssh/integra/askpass", isDirectory: true)
-                    try? FileManager.default.createDirectory(at: askpassDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-                    
-                    let tempScript = askpassDir.appendingPathComponent("askpass_\(UUID().uuidString).sh")
-                    
-                    // Use quoted EOF delimiter in /bin/sh to prevent ANY shell parameter, backtick, or dollar expansion (M-2 Fix)
-                    let scriptContent = """
-                    #!/bin/sh
-                    /bin/cat << 'INTEGRA_ASKPASS_EOF'
-                    \(pass)
-                    INTEGRA_ASKPASS_EOF
-                    """
-                    try? scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
-                    try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempScript.path)
-                    askPassScript = tempScript
-                    
-                    env["SSH_ASKPASS"] = tempScript.path
-                    env["SSH_ASKPASS_REQUIRE"] = "force"
-                    env["DISPLAY"] = ":0"
+                if let pass = password, !pass.isEmpty,
+                   let session = AskPassHelper.shared.createSession(password: pass) {
+                    askPassScript = session.scriptURL
+                    env = session.environment
                 } else {
                     args.append(contentsOf: ["-o", "BatchMode=yes"])
                 }
@@ -136,6 +120,9 @@ public class RemoteBrowserService {
                 )
             }
             
+            let outTask = Task.detached { (try? outPipe.fileHandleForReading.readToEnd()) ?? Data() }
+            let errTask = Task.detached { (try? errPipe.fileHandleForReading.readToEnd()) ?? Data() }
+            
             let timeoutTask = Task {
                 try? await Task.sleep(nanoseconds: 12_000_000_000)
                 if process.isRunning {
@@ -146,8 +133,8 @@ public class RemoteBrowserService {
             process.waitUntilExit()
             timeoutTask.cancel()
             
-            let outData = (try? outPipe.fileHandleForReading.readToEnd()) ?? Data()
-            let errData = (try? errPipe.fileHandleForReading.readToEnd()) ?? Data()
+            let outData = await outTask.value
+            let errData = await errTask.value
             
             let outString = String(data: outData, encoding: .utf8) ?? ""
             let errString = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

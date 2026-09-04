@@ -149,7 +149,8 @@ public class SSHFSService: ObservableObject {
             if !keyPath.isEmpty {
                 args.append(contentsOf: ["-o", "IdentityFile=\(keyPath)"])
             }
-            if let keyPassphrase = password, !keyPassphrase.isEmpty {
+            let keyPassphrase = password ?? KeychainService.shared.getPassword(account: profile.id.uuidString)
+            if let pass = keyPassphrase, !pass.isEmpty {
                 args.append("-o")
                 args.append("password_stdin")
             }
@@ -158,7 +159,7 @@ public class SSHFSService: ObservableObject {
             args.append("password_stdin")
         }
         
-        let authPassword = password ?? (profile.authMethod == .password ? KeychainService.shared.getPassword(account: profile.id.uuidString) : nil)
+        let authPassword = password ?? (profile.authMethod != .none ? KeychainService.shared.getPassword(account: profile.id.uuidString) : nil)
         
         try await Task.detached(priority: .userInitiated) {
             let process = Process()

@@ -762,6 +762,107 @@ func main() async {
         TestContext.assertEqual(UpdateCheckerService.cleanVersionString(" 0.13.0 \n"), "0.13.0", "Surrounding whitespace must be trimmed")
     }
     
+    // ---------------------------------------------------------
+    // 11. Security Audit Regression & Fix Verification Tests
+    // ---------------------------------------------------------
+    print("▶︎ Running Suite: Security Audit & Reliability Regression Fixes")
+    
+    TestContext.runTest(suite: "RegressionAndSecurityFixTests", name: "testAppleScriptEscapingOrderSafety") {
+        // Plain quoted string: with old buggy order, quotes became \\" which breaks out of AppleScript strings.
+        let plain = #"echo "hello""#
+        let sanitizedPlain = SudoAuthManager.sanitizeForAppleScript(plain)
+        TestContext.assertEqual(sanitizedPlain, #"echo \"hello\""#, "Quotes in plain string must be escaped with single backslash")
+        TestContext.assertFalse(sanitizedPlain.contains(#"\\""#), "Plain string must not contain \\\" breakout pattern")
+        
+        // Backslash escaping: backslashes must be doubled
+        let backslash = #"echo \test"#
+        let sanitizedBackslash = SudoAuthManager.sanitizeForAppleScript(backslash)
+        TestContext.assertEqual(sanitizedBackslash, #"echo \\test"#, "Backslashes must be doubled")
+        
+        // Complex string with quotes and backslashes
+        let complex = #"echo "hello \ \"world\"""#
+        let sanitizedComplex = SudoAuthManager.sanitizeForAppleScript(complex)
+        TestContext.assertEqual(sanitizedComplex, #"echo \"hello \\ \\\"world\\\"\""#, "Complex backslash and quote sequence must be properly escaped")
+    }
+    
+    TestContext.runTest(suite: "RegressionAndSecurityFixTests", name: "testAskPassUUIDDelimiterUniqueness") {
+        let testPass = "SecretP@ssword123!"
+        guard let session = AskPassHelper.shared.createSession(password: testPass) else {
+            TestContext.assertTrue(false, "AskPassHelper must successfully create an isolated session")
+            return
+        }
+        defer { session.cleanup() }
+        
+        TestContext.assertTrue(FileManager.default.fileExists(atPath: session.scriptURL.path), "Script file must exist on disk")
+        
+        let content = (try? String(contentsOf: session.scriptURL, encoding: .utf8)) ?? ""
+        TestContext.assertTrue(content.contains("INTEGRA_EOF_"), "Delimiting token must use dynamic INTEGRA_EOF_ prefix")
+        TestContext.assertFalse(content.contains("INTEGRA_ASKPASS_EOF"), "Delimiting token must NOT use static literal INTEGRA_ASKPASS_EOF")
+        TestContext.assertTrue(content.contains(testPass), "Script content must contain the payload password")
+        
+        let attrs = try? FileManager.default.attributesOfItem(atPath: session.scriptURL.path)
+        let posix = (attrs?[.posixPermissions] as? NSNumber)?.intValue ?? 0
+        TestContext.assertEqual(posix, 0o700, "Script permissions must be strict 0700")
+    }
+    
+    TestContext.runTest(suite: "RegressionAndSecurityFixTests", name: "testProfileDeletionPurgesSudoKeychain") {
+        let tempStorage = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("integra_sudo_purge_test_\(UUID().uuidString).json")
+        let store = ProfileStore(storageURL: tempStorage)
+        let profile = SSHProfile(name: "PurgeTest", host: "purge.test.local", port: 22, user: "root")
+        
+        store.addProfile(profile)
+        _ = KeychainService.shared.savePassword(account: profile.id.uuidString, password: "ssh_password")
+        _ = KeychainService.shared.saveSudoPassword(for: profile.id, password: "sudo_password")
+        
+        TestContext.assertEqual(KeychainService.shared.getPassword(account: profile.id.uuidString), "ssh_password", "SSH password must be in Keychain")
+        TestContext.assertEqual(KeychainService.shared.getSudoPassword(for: profile.id), "sudo_password", "Sudo password must be in Keychain")
+        
+        store.deleteProfile(id: profile.id)
+        
+        TestContext.assertNil(KeychainService.shared.getPassword(account: profile.id.uuidString), "SSH password must be deleted from Keychain")
+        TestContext.assertNil(KeychainService.shared.getSudoPassword(for: profile.id), "Sudo password must be deleted from Keychain on profile deletion")
+    }
+    
+    TestContext.runTest(suite: "RegressionAndSecurityFixTests", name: "testConcurrentPipeDrainingSafety") {
+        // Run a subprocess generating 128KB of output (well over the Darwin 64KB pipe buffer)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        process.arguments = ["-c", "import sys; sys.stdout.write('A' * 131072); sys.stderr.write('B' * 65536)"]
+        
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+        
+        var outData = Data()
+        var errData = Data()
+        let ioGroup = DispatchGroup()
+        
+        ioGroup.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
+            outData = (try? outPipe.fileHandleForReading.readToEnd()) ?? Data()
+            ioGroup.leave()
+        }
+        
+        ioGroup.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
+            errData = (try? errPipe.fileHandleForReading.readToEnd()) ?? Data()
+            ioGroup.leave()
+        }
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            ioGroup.wait()
+            
+            TestContext.assertEqual(process.terminationStatus, 0, "Process must terminate successfully")
+            TestContext.assertEqual(outData.count, 131072, "128KB stdout must be completely drained without deadlocking")
+            TestContext.assertEqual(errData.count, 65536, "64KB stderr must be completely drained without deadlocking")
+        } catch {
+            TestContext.assertTrue(false, "Failed to execute pipe test: \(error)")
+        }
+    }
+    
     print("")
     
     let duration = String(format: "%.3f", CFAbsoluteTimeGetCurrent() - startTime)

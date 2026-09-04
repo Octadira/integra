@@ -21,6 +21,7 @@
 |                        Core Services Layer                            |
 |  - ProfileStore (Permanent ~/Library/Application Support/Integra/...) |
 |  - SSHFSService (Process orchestration, background worker tasks)      |
+|  - AskPassHelper (Dynamic tokenized SSH_ASKPASS script generator)     |
 |  - MCPConfigService (1-Click multi-client IDE configuration engine)   |
 |  - SudoAuthManager (Touch ID, biometric, & macOS GUI authorization)  |
 |  - NetworkRecoveryService (NWPathMonitor + Sleep/Wake Auto-Healing)   |
@@ -83,4 +84,13 @@
 - **`SSHTunnelService.swift`**: Manages background SSH port forwarding processes, auto-reclaims orphaned SSH processes on port conflicts, performs active keepalive health monitoring, and exposes live endpoint URLs for AI agents.
 - **`RemoteExecService.swift`**: Maintains persistent OpenSSH ControlMaster sockets for sub-5ms latency and manages the `~/.local/bin/integra-exec` CLI helper.
 - **`UpdateCheckerService.swift`**: Polls the public release API every 24 hours and upon macOS wake from sleep (`NSWorkspace.didWakeNotification`) to verify SemVer versions and provide non-intrusive UI badging.
+- **`AskPassHelper.swift`**: Centralizes generation of isolated, ephemeral `SSH_ASKPASS` helper scripts in `NSTemporaryDirectory()` using non-predictable UUID delimiters (`INTEGRA_EOF_<UUID>`) and strict `0700` POSIX permissions, preventing heredoc injection and deduplicating askpass logic across tunnels, remote exec, and the MCP server.
 - **`KeychainService.swift`**: Wraps Apple's `Security.framework` (`SecItemAdd`, `SecItemCopyMatching`, `SecItemDelete`) for SSH passwords, private key passphrases, and sudo credentials.
+
+---
+
+## 5. Subprocess Concurrency & Pipe Safety Architecture
+
+To prevent deadlocks when executing external binaries (e.g. `ssh`, `sshfs`, `osascript`, `python3`):
+- **Concurrent Pipe Draining (`Task.detached`)**: Subprocess `stdout` and `stderr` are drained asynchronously across independent worker tasks *before* awaiting `process.waitUntilExit()`. This guarantees that processes producing large outputs exceeding Darwin's 64KB kernel pipe buffer never block on full pipe buffers.
+- **Main Thread Isolation**: All process invocation, wait loops, and network probes are executed exclusively on background cooperative tasks (`Task.detached(priority: .userInitiated)`), preserving 60 FPS responsiveness on the `@MainActor` UI thread.

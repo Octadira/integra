@@ -5,6 +5,34 @@ All notable changes to the Integra macOS SSHFS Manager project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.5] - 2026-09-04
+
+### Security
+- **Dynamic Tokenized SSH_ASKPASS Generator (`AskPassHelper.swift`)**:
+  - Implemented centralized `AskPassHelper` providing cryptographically isolated, per-session temporary askpass scripts generated in `NSTemporaryDirectory()` with non-predictable UUID delimiters (`INTEGRA_EOF_<UUID>`) and strict `0700` (`-rwx------`) POSIX permissions.
+  - Eliminated static heredoc delimiter injection risk and deduplicated askpass provisioning across `SSHTunnelService`, `RemoteExecService`, `RemoteBrowserService`, and `IntegraMCP`.
+- **AppleScript String Sanitization Ordering (`SudoAuthManager.swift`)**:
+  - Fixed inverted string escaping order in `sanitizeForAppleScript` by strictly escaping backslashes (`\` -> `\\`) prior to double-quotes (`"` -> `\"`), preventing arbitrary command breakout when prompting for administrator privileges via `osascript`.
+- **Comprehensive Keychain Credential Purge (`ProfileStore.swift`, `ProfileEditView.swift`)**:
+  - Updated `ProfileStore.deleteProfile` to purge both standard SSH passwords and sudo credentials (`KeychainService.deleteSudoPassword`) simultaneously, preventing lingering orphaned secrets in macOS Keychain.
+  - Updated `ProfileEditView.save` to proactively purge saved passwords from the Keychain whenever a server profile switches authentication to SSH Key / None, or when the password field is cleared.
+
+### Fixed
+- **Subprocess Pipe Buffer Deadlock Elimination (`RemoteBrowserService.swift`, `RemoteExecService.swift`, `IntegraMCP/main.swift`)**:
+  - Replaced blocking synchronous reads with concurrent detached reader tasks (`Task.detached`) that drain `stdout` and `stderr` asynchronously before awaiting subprocess termination, eliminating process deadlocks when command output exceeds Darwin's 64KB kernel pipe buffer.
+- **SSH Key Identity File Propagation in Terminal Launcher (`TerminalService.swift`)**:
+  - Added `-i <identityFile>` propagation when launching interactive sessions in external terminals (Terminal.app, Ghostty, iTerm2, Warp), ensuring correct private key selection for hosts relying on custom SSH key paths.
+- **Background Execution for MCP Codex CLI (`MCPConfigService.swift`)**:
+  - Dispatched `runCodexCLI` to detached background tasks, removing synchronous process blocking from the `@MainActor` thread during AI client auto-configuration.
+- **Key Passphrase Recovery in SSHFS Mounts (`SSHFSService.swift`)**:
+  - Added Keychain password retrieval for key-based authentication profiles, enabling automatic passphrase injection during autonomous network recovery and auto-mount.
+
+### Added
+- **Automated Security & Concurrency Regression Tests (`Tests/IntegraTestRunner/main.swift`)**:
+  - Added test suite for `AskPassHelper` UUID delimiter generation, AppleScript sequential escaping order safety, complete profile Keychain credential purging, and concurrent 128KB subprocess pipe buffer draining (48/48 tests passing).
+
+---
+
 ## [0.16.4] - 2026-08-28
 
 ### Fixed
